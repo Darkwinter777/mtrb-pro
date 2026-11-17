@@ -6,7 +6,7 @@
 //|          runner), ratchet SL, squeeze, ekspansi TP, cooldown     |
 //+------------------------------------------------------------------+
 #property copyright "MTRB Pro"
-#property version   "3.03"
+#property version   "3.04"
 #property description "Scalper MTF: bias D1..M1, entry pullback M1, twin order + ratchet, panel + news"
 
 #include <Trade/Trade.mqh>
@@ -37,6 +37,22 @@ input bool   InpEnableMOM      = false;    // Strategi momentum M30 dengan entry
 input bool   InpEnableRSM      = false;    // Strategi RSI + Moving Average (M5)
 
 input bool   InpEnableDIP      = true;     // Strategi scalping koreksi (M5)
+
+input group "=== Strategi: pola candle + RSI (Dark Cloud / Piercing Line / Hanging Man / Hammer) ==="
+input bool   InpEnableCDL      = true;     // Strategi pola candle + RSI
+input ENUM_TIMEFRAMES InpCdlTF = PERIOD_M5; // Timeframe
+input bool   InpCdlDarkPierce  = true;     // Pola Dark Cloud Cover (sell) dan Piercing Line (buy)
+input bool   InpCdlHangHammer  = true;     // Pola Hanging Man (sell) dan Hammer (buy)
+input int    InpCdlBodyPeriod  = 12;       // Rata-rata badan candle dari N candle
+input int    InpCdlMaPeriod    = 5;        // MA tren (SMA)
+input int    InpCdlRsiPeriod   = 37;       // RSI
+input double InpCdlRsiBuy      = 40.0;     // Buy hanya jika RSI di bawah ini
+input double InpCdlRsiSell     = 60.0;     // Sell hanya jika RSI di atas ini
+input double InpCdlSL          = 2.0;      // SL (USD harga; 200 point di emas)
+input double InpCdlTP          = 2.0;      // TP (USD harga)
+input int    InpCdlMaxBars     = 10;       // Tutup posisi setelah N candle (0 = off)
+input bool   InpCdlExitRsi     = true;     // Keluar saat RSI memotong 30 / 70
+input double InpCdlMaxSpread   = 0.60;     // Spread maks (USD harga)
 
 input group "=== Strategi: scalping koreksi searah tren ==="
 input ENUM_TIMEFRAMES InpDipTF = PERIOD_M5; // Timeframe
@@ -372,6 +388,10 @@ bool            g_enDIP = false;
 int             g_hDipEma = INVALID_HANDLE, g_hDipAtr = INVALID_HANDLE;
 datetime        g_dipBar = 0;
 string          g_dipStatus = "-";
+bool            g_enCDL = false;
+int             g_hCdlRsi = INVALID_HANDLE, g_hCdlMa = INVALID_HANDLE;
+datetime        g_cdlBar = 0;
+string          g_cdlStatus = "-";
 // Range Hybrid
 enum RH_MODE { RH_OFF = 0, RH_DETAIL = 1, RH_STRICT = 2 };
 struct RhState
@@ -623,6 +643,10 @@ int OnInit()
       return INIT_FAILED;
    g_hDipEma = iMA(_Symbol, InpDipTF, InpDipTrendEma, 0, MODE_EMA, PRICE_CLOSE);
    g_hDipAtr = iATR(_Symbol, InpDipTF, 14);
+   g_hCdlRsi = iRSI(_Symbol, InpCdlTF, InpCdlRsiPeriod, PRICE_CLOSE);
+   g_hCdlMa  = iMA(_Symbol, InpCdlTF, InpCdlMaPeriod, 0, MODE_SMA, PRICE_CLOSE);
+   if(g_hCdlRsi == INVALID_HANDLE || g_hCdlMa == INVALID_HANDLE)
+      return INIT_FAILED;
    if(g_hDipEma == INVALID_HANDLE || g_hDipAtr == INVALID_HANDLE)
       return INIT_FAILED;
    g_hRhAdx = iADX(_Symbol, InpRangeTF, InpRhAdxPeriod);
@@ -666,6 +690,7 @@ int OnInit()
    g_enMain = InpEnableMain; g_enORB = InpEnableORB; g_enSMC = InpEnableSMC; g_enMOM = InpEnableMOM;
    g_enRSM = InpEnableRSM;
    g_enDIP = InpEnableDIP;
+   g_enCDL = InpEnableCDL;
    g_enRH = InpEnableRangeHybrid;
    g_slMin = InpSLMinPerTrade; g_slMax = InpSLMaxPerTrade;
    ApplyMode(InpExtremeMode);
@@ -725,6 +750,8 @@ void OnDeinit(const int reason)
    IndicatorRelease(g_hRsmMa);
    IndicatorRelease(g_hDipEma);
    IndicatorRelease(g_hDipAtr);
+   IndicatorRelease(g_hCdlRsi);
+   IndicatorRelease(g_hCdlMa);
    IndicatorRelease(g_hRhAdx);
    IndicatorRelease(g_hRhRsi);
    IndicatorRelease(g_hRhAtr);
@@ -763,6 +790,7 @@ void OnTick()
    StrategyMOM();
    StrategyRSM();
    StrategyDIP();
+   StrategyCDL();
    StrategyRH();
    RefreshStatuses();
 
@@ -1315,7 +1343,7 @@ bool IsHBMagic(const long m) { return (m == InpMagic + 101 || m == InpMagic + 11
 bool IsTLMagic(const long m) { return (m == InpMagic + 103 || m == InpMagic + 113); }
 bool IsOurMagic(const long m)
   {
-   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagicRange);
+   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagic + 108 || m == InpMagicRange);
   }
 
 // jalankan tiap salinan strategi: muat keadaannya ke variabel aktif, jalankan, simpan kembali
@@ -2436,7 +2464,7 @@ void StrategyMOM()
 //+------------------------------------------------------------------+
 #define DASH_STATUS  "MTRB_Pro_status.json"
 #define DASH_CONTROL "MTRB_Pro_control.txt"
-#define N_ENG 12
+#define N_ENG 13
 
 struct EngInfo
   {
@@ -2481,6 +2509,7 @@ void DashInit()
   {
    g_nEng = 0;
    DashAdd("DIP", "Scalping koreksi " + TfName(InpDipTF), "dip", TfName(InpDipTF), InpMagic + 107);
+   DashAdd("CDL", "Pola candle + RSI " + TfName(InpCdlTF), "candle", TfName(InpCdlTF), InpMagic + 108);
    DashAdd("RH", "Range Hybrid " + TfName(InpRangeTF), "range", TfName(InpRangeTF), InpMagicRange);
    DashAdd("HB1", "Breakout " + TfName(InpHbTF), "breakout", TfName(InpHbTF), InpMagic + 101);
    DashAdd("HB2", "Breakout " + TfName(InpHbTF2), "breakout", TfName(InpHbTF2), InpMagic + 111);
@@ -2505,6 +2534,7 @@ bool EngEnabled(const string id)
    if(id == "MOM") return g_enMOM;
    if(id == "RSM") return g_enRSM;
    if(id == "DIP") return g_enDIP;
+   if(id == "CDL") return g_enCDL;
    if(id == "RH") return g_enRH;
    if(id == "SMC") return g_enSMC;
    if(id == "MAIN") return g_enMain;
@@ -2522,6 +2552,7 @@ string EngStatus(const string id)
    if(id == "MOM") return g_momStatus;
    if(id == "RSM") return g_rsmStatus;
    if(id == "DIP") return g_dipStatus;
+   if(id == "CDL") return g_cdlStatus;
    if(id == "RH") return g_rhStatus;
    if(id == "SMC") return g_smcStatus;
    return g_status;
@@ -2538,6 +2569,7 @@ void EngSet(const string id, const bool on)
    else if(id == "MOM") g_enMOM = on;
    else if(id == "RSM") g_enRSM = on;
    else if(id == "DIP") g_enDIP = on;
+   else if(id == "CDL") g_enCDL = on;
    else if(id == "RH") g_enRH = on;
    else if(id == "SMC") g_enSMC = on;
    else if(id == "MAIN") g_enMain = on;
@@ -2715,7 +2747,7 @@ void DashWriteStatus()
    bool   newsBlk = NewsBlocked(why);
 
    string s = "{";
-   s += StringFormat("\"v\":\"3.03\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
+   s += StringFormat("\"v\":\"3.04\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
    s += StringFormat("\"account\":{\"server\":\"%s\",\"login_tail\":\"%s\",\"demo\":%s,\"currency\":\"%s\",\"balance\":%.2f,\"equity\":%.2f,\"free_margin\":%.2f,\"margin_level\":%.1f,\"leverage\":%I64d,\"connected\":%s},",
                      JS(AccountInfoString(ACCOUNT_SERVER)), tail, (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "true" : "false",
                      JS(AccountInfoString(ACCOUNT_CURRENCY)), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
@@ -2921,6 +2953,114 @@ void StrategyRSM()
 //| -> beli (cerminnya untuk jual). SL = ATR, TP = kelipatan SL,     |
 //| posisi ditutup paling lambat InpDipMaxMin menit.                 |
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//| Strategi pola candle + RSI                                       |
+//| Sell: Dark Cloud Cover / Hanging Man saat RSI tinggi             |
+//| Buy : Piercing Line / Hammer saat RSI rendah                     |
+//| Keluar: SL/TP, RSI memotong 30/70, atau batas jumlah candle      |
+//+------------------------------------------------------------------+
+void StrategyCDL()
+  {
+   if(!g_enCDL)
+      return;
+   datetime bar = iTime(_Symbol, InpCdlTF, 0);
+   if(bar <= 0 || bar == g_cdlBar)
+      return;
+   g_cdlBar = bar;
+   long mg = InpMagic + 108;
+
+   int nb = MathMax(2, InpCdlBodyPeriod);
+   MqlRates r[];
+   ArraySetAsSeries(r, true);
+   double rsi1 = Val(g_hCdlRsi, 0, 1), rsi2 = Val(g_hCdlRsi, 0, 2), ma2 = Val(g_hCdlMa, 0, 2);
+   if(CopyRates(_Symbol, InpCdlTF, 0, nb + 3, r) < nb + 3 || rsi1 == EMPTY_VALUE || rsi2 == EMPTY_VALUE || ma2 == EMPTY_VALUE)
+     {
+      g_cdlStatus = "WAIT: data belum siap";
+      return;
+     }
+
+   // posisi terbuka: keluar lewat RSI atau batas waktu
+   bool hasPos = false;
+   bool exitLong  = ((rsi1 < 70 && rsi2 > 70) || (rsi1 < 30 && rsi2 > 30));
+   bool exitShort = ((rsi1 > 30 && rsi2 < 30) || (rsi1 > 70 && rsi2 < 70));
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong tk = PositionGetTicket(i);
+      if(tk == 0 || PositionGetString(POSITION_SYMBOL) != _Symbol || PositionGetInteger(POSITION_MAGIC) != mg)
+         continue;
+      bool buy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+      bool old = (InpCdlMaxBars > 0 && TimeCurrent() - (datetime)PositionGetInteger(POSITION_TIME) >= InpCdlMaxBars * PeriodSeconds(InpCdlTF));
+      if(old || (InpCdlExitRsi && (buy ? exitLong : exitShort)))
+        {
+         if(trade.PositionClose(tk))
+           {
+            g_cdlStatus = old ? "Keluar: batas waktu" : "Keluar: RSI memotong 30/70";
+            continue;
+           }
+        }
+      hasPos = true;
+     }
+   if(hasPos)
+     {
+      g_cdlStatus = "Posisi aktif";
+      return;
+     }
+
+   double avg = 0;
+   for(int i = 1; i <= nb; i++)
+      avg += MathAbs(r[i].open - r[i].close);
+   avg /= nb;
+   double o1 = r[1].open, c1 = r[1].close, h1 = r[1].high, l1 = r[1].low;
+   double o2 = r[2].open, c2 = r[2].close, h2 = r[2].high, l2 = r[2].low;
+   double midOC2 = (o2 + c2) / 2.0, mid1 = (h1 + l1) / 2.0;
+   int    d = 0;
+   string pat = "";
+   if(InpCdlDarkPierce)
+     {
+      // Dark Cloud Cover: candle naik panjang, lalu buka di atas high-nya dan tutup turun di dalam badannya
+      if(c2 - o2 > avg && c1 < c2 && c1 > o2 && midOC2 > ma2 && o1 > h2)
+        {
+         d = -1; pat = "Dark Cloud Cover";
+        }
+      // Piercing Line: candle turun panjang, lalu buka di bawah low-nya dan tutup naik panjang di dalam badannya
+      else if(c1 - o1 > avg && o2 - c2 > avg && c1 > c2 && c1 < o2 && midOC2 < ma2 && o1 < l2)
+        {
+         d = 1; pat = "Piercing Line";
+        }
+     }
+   if(d == 0 && InpCdlHangHammer)
+     {
+      bool upper = (MathMin(o1, c1) > h1 - (h1 - l1) / 3.0);      // badan di sepertiga atas candle
+      if(upper && mid1 > ma2 && c1 > c2 && o1 > o2)
+        {
+         d = -1; pat = "Hanging Man";
+        }
+      else if(upper && mid1 < ma2 && c1 < c2 && o1 < o2)
+        {
+         d = 1; pat = "Hammer";
+        }
+     }
+   if(d == 0)
+     {
+      g_cdlStatus = StringFormat("Tunggu pola candle (RSI %.0f)", rsi1);
+      return;
+     }
+   if((d == 1 && rsi1 >= InpCdlRsiBuy) || (d == -1 && rsi1 <= InpCdlRsiSell))
+     {
+      g_cdlStatus = StringFormat("%s, RSI %.0f belum konfirmasi", pat, rsi1);
+      return;
+     }
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK), bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   string why = "";
+   if(IsWeekend() || ask - bid > InpCdlMaxSpread || NewsBlocked(why))
+     {
+      g_cdlStatus = pat + ": sinyal dilewati (spread / news)";
+      return;
+     }
+   double slDist = MathMax(InpCdlSL, MinStopDist());
+   g_cdlStatus = OpenStrategy(mg, d, slDist, (InpCdlTP > 0 ? InpCdlTP / slDist : 0), "MTRB CDL");
+  }
+
 void StrategyDIP()
   {
    if(!g_enDIP)
@@ -3989,7 +4129,7 @@ void WriteReport()
          ArrayResize(rec, k + 1, 1024);
          string cmt = HistoryDealGetString(tk, DEAL_COMMENT);
          rec[k].pid    = pid;
-         rec[k].kind   = (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
+         rec[k].kind   = (StringFind(cmt, "MTRB CDL") == 0) ? "CDL" : (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
          rec[k].dir    = (HistoryDealGetInteger(tk, DEAL_TYPE) == DEAL_TYPE_BUY) ? 1 : -1;
          rec[k].tIn    = (datetime)HistoryDealGetInteger(tk, DEAL_TIME);
          rec[k].pIn    = HistoryDealGetDouble(tk, DEAL_PRICE);

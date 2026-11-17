@@ -1,5 +1,5 @@
 {
-  "v": "3.03",
+  "v": "3.04",
   "ts": 1794830400,
   "written": 1794830400,
   "refreshed": 1794830280,
@@ -11,6 +11,7 @@
   "sessions": {"asia": true, "london": true, "ny": true, "now": 1, "london_hour": 9, "ny_hour": 15},
   "engines": [
     {"id": "DIP", "name": "Scalping koreksi M5", "type": "dip", "tf": "M5", "enabled": true, "status": "Tren naik, pasar ramai, tunggu 3 candle merah", "positions": 0, "float_pl": 0.00, "total_pl": 18.40, "trades": 22, "wins": 12, "today_pl": 5.80, "today_trades": 3},
+    {"id": "CDL", "name": "Pola candle + RSI M5", "type": "candle", "tf": "M5", "enabled": true, "status": "Tunggu pola candle (RSI 52)", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
     {"id": "RH", "name": "Range Hybrid M5", "type": "range", "tf": "M5", "enabled": true, "status": "OFF | skor 22 | range 4052.10-4078.30 (lebar 26.20, boleh 11.51-26.72, umur 14) | sentuh H1/L2 | ADX 27.4 | ATR 4.11", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
     {"id": "HB1", "name": "Breakout H4", "type": "breakout", "tf": "H4", "enabled": true, "status": "Tunggu tutup > 4098.40", "positions": 0, "float_pl": 0.00, "total_pl": 41.20, "trades": 6, "wins": 3, "today_pl": 0.00, "today_trades": 0},
     {"id": "HB2", "name": "Breakout H1", "type": "breakout", "tf": "H1", "enabled": true, "status": "Posisi aktif", "positions": 1, "float_pl": 8.10, "total_pl": 12.60, "trades": 14, "wins": 5, "today_pl": 0.00, "today_trades": 0},

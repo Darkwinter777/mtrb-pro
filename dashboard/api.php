@@ -30,7 +30,7 @@ if ($pin === '') {
 $dir         = rtrim($cfg['data_dir'], "\\/");
 $statusFile  = $dir . DIRECTORY_SEPARATOR . 'MTRB_Pro_status.json';
 $controlFile = $dir . DIRECTORY_SEPARATOR . 'MTRB_Pro_control.txt';
-$engines     = ['DIP', 'RH', 'HB1', 'HB2', 'HB3', 'TL1', 'TL2', 'ORB', 'RSM', 'MOM', 'SMC', 'MAIN'];
+$engines     = ['DIP', 'CDL', 'RH', 'HB1', 'HB2', 'HB3', 'TL1', 'TL2', 'ORB', 'RSM', 'MOM', 'SMC', 'MAIN'];
 $demo        = !empty($_GET['demo']);
 
 function readControl($file)
