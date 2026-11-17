@@ -6,7 +6,7 @@
 //|          runner), ratchet SL, squeeze, ekspansi TP, cooldown     |
 //+------------------------------------------------------------------+
 #property copyright "MTRB Pro"
-#property version   "3.05"
+#property version   "3.06"
 #property description "Scalper MTF: bias D1..M1, entry pullback M1, twin order + ratchet, panel + news"
 
 #include <Trade/Trade.mqh>
@@ -2790,7 +2790,7 @@ void DashWriteStatus()
    bool   newsBlk = NewsBlocked(why);
 
    string s = "{";
-   s += StringFormat("\"v\":\"3.05\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
+   s += StringFormat("\"v\":\"3.06\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
    s += StringFormat("\"account\":{\"server\":\"%s\",\"login_tail\":\"%s\",\"demo\":%s,\"currency\":\"%s\",\"balance\":%.2f,\"equity\":%.2f,\"free_margin\":%.2f,\"margin_level\":%.1f,\"leverage\":%I64d,\"connected\":%s},",
                      JS(AccountInfoString(ACCOUNT_SERVER)), tail, (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "true" : "false",
                      JS(AccountInfoString(ACCOUNT_CURRENCY)), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
@@ -4684,6 +4684,14 @@ string EngShort(const int i)
    return id;
   }
 
+// waktu server -> WIB (GMT+7); selisih server-GMT dibulatkan ke 15 menit
+datetime ToWib(const datetime srv)
+  {
+   long off = (long)TimeTradeServer() - (long)TimeGMT();
+   off = (long)MathRound(off / 900.0) * 900;
+   return (datetime)((long)srv - off + 7 * 3600);
+  }
+
 void DrawPanel()
   {
    if(!PanelEnabled())
@@ -4767,6 +4775,11 @@ void DrawPanel()
    PLabel("ssv", L + SX(46), cy, SessionName(sn), C_TEXT, 8, true);
    PLabel("sss", R, cy, g_sessOn[sn] ? "entry diizinkan" : "entry dimatikan", g_sessOn[sn] ? C_UP : C_DN, 8, false, ANCHOR_RIGHT_UPPER);
    cy += row;
+   datetime now = TimeTradeServer();
+   PLabel("tmh", L, cy, "Waktu", C_DIM, 8);
+   PLabel("tmv", L + SX(46), cy, TimeToString(ToWib(now), TIME_MINUTES) + " WIB", C_TEXT, 8, true);
+   PLabel("tms", R, cy, "server " + TimeToString(now, TIME_MINUTES), C_DIM, 8, false, ANCHOR_RIGHT_UPPER);
+   cy += row;
 
    // indikator strategi utama hanya ditampilkan kalau strategi itu dinyalakan
    if(g_enMain)
@@ -4777,21 +4790,17 @@ void DrawPanel()
      }
    cy += SX(5);
 
-   // --- strategi: yang menyala satu baris masing-masing, yang mati diringkas
+   // --- strategi: hanya yang menyala, satu baris masing-masing
    PLabel("sh", L, cy, "STRATEGI", C_DIM, 7);
    if(g_refAt > 0)
-      PLabel("shr", R, cy, "diperbarui " + TimeToString(g_refAt, TIME_MINUTES), C_DIM, 7, false, ANCHOR_RIGHT_UPPER);
+      PLabel("shr", R, cy, "diperbarui " + TimeToString(ToWib(g_refAt), TIME_MINUTES) + " WIB", C_DIM, 7, false, ANCHOR_RIGHT_UPPER);
    cy += SX(13);
-   string off = "";
    int    nOn = 0;
    for(int i = 0; i < g_nEng; i++)
      {
       string lab = EngShort(i);
       if(!EngEnabled(g_eng[i].id))
-        {
-         off += (off == "" ? "" : ", ") + lab;
          continue;
-        }
       string st = EngStatus(g_eng[i].id);
       color  sc = C_TEXT;
       if(StringFind(st, "Posisi aktif") == 0 || StringFind(st, "BUY") == 0 || StringFind(st, "SELL") == 0)
@@ -4808,11 +4817,6 @@ void DrawPanel()
      {
       PLabel("none", L, cy, "Semua strategi mati", C_DIM, 8);
       cy += SX(16);
-     }
-   if(off != "")
-     {
-      PLabel("off", L, cy, "Mati: " + Fit(off, 46), C_DIM, 7);
-      cy += SX(14);
      }
    cy += SX(5);
 
