@@ -1,0 +1,28 @@
+net latih / validasi / uji
+dasar (semua sesi 01-22)                  467 (PF 1.25, n 749)      24 (PF 1.01, n 385)      68 (PF 1.06, n 360) | total    559 DD   164 3.9/hari
+  hanya Asia 01-09                        134 (PF 1.25, n 212)     -16 (PF 0.97, n 123)     -31 (PF 0.93, n 130) | total     88 DD   116 1.2/hari
+  hanya London 09-15                      -47 (PF 0.87, n 128)       2 (PF 1.01, n  70)      63 (PF 1.67, n  44) | total     18 DD   100 0.6/hari
+  hanya NY 15-22                          379 (PF 1.39, n 409)      38 (PF 1.04, n 192)      36 (PF 1.05, n 186) | total    453 DD   117 2.1/hari
+  hanya buy                               437 (PF 1.33, n 553)      75 (PF 1.17, n 108)       5 (PF 1.01, n 148) | total    518 DD    65 2.1/hari
+  hanya sell                               30 (PF 1.06, n 196)     -52 (PF 0.96, n 277)      63 (PF 1.09, n 212) | total     41 DD   184 1.8/hari
+--- dijalankan ulang dengan batas sesi (satu posisi pada satu waktu) ---
+NY saja                                   379 (PF 1.39, n 409)      38 (PF 1.04, n 192)      36 (PF 1.05, n 186) | total    453 DD   117 2.1/hari
+London+NY                                 327 (PF 1.25, n 538)      40 (PF 1.03, n 262)      99 (PF 1.13, n 230) | total    466 DD   166 2.7/hari
+SL 0.75 ATR                               269 (PF 1.17, n 768)     116 (PF 1.08, n 393)      89 (PF 1.10, n 368) | total    474 DD   116 4.0/hari
+SL 0.75 ATR, TP 1.5R                      352 (PF 1.19, n 759)     -64 (PF 0.96, n 388)      70 (PF 1.06, n 367) | total    359 DD   278 4.0/hari
+batas 3 jam                               406 (PF 1.21, n 745)      34 (PF 1.02, n 385)     101 (PF 1.08, n 359) | total    541 DD   153 3.9/hari
+SL 0.75, batas 3 jam                      266 (PF 1.17, n 767)     104 (PF 1.07, n 393)     113 (PF 1.12, n 368) | total    483 DD   122 4.0/hari
+ramai 1.1                                 297 (PF 1.12, n 1026)     -13 (PF 0.99, n 529)      71 (PF 1.04, n 526) | total    355 DD   211 5.5/hari
+ramai 1.4                                 509 (PF 1.35, n 549)      23 (PF 1.02, n 280)      46 (PF 1.05, n 259) | total    578 DD   185 2.9/hari
+tren EMA 1200 (H2)                        299 (PF 1.16, n 726)       2 (PF 1.00, n 388)      -0 (PF 1.00, n 357) | total    301 DD   196 3.9/hari
+tren EMA 4800 (H8)                        455 (PF 1.24, n 749)    -147 (PF 0.92, n 398)       6 (PF 1.00, n 375) | total    314 DD   303 4.0/hari
+NY, SL 0.75                               256 (PF 1.32, n 419)      89 (PF 1.12, n 197)      40 (PF 1.07, n 192) | total    385 DD   110 2.1/hari
+NY, batas 3 jam                           364 (PF 1.37, n 408)      64 (PF 1.07, n 192)      47 (PF 1.07, n 185) | total    476 DD   104 2.1/hari
+
+=== pengaruh batas SL maksimal (net latih / validasi / uji) ===
+SL maks 12.0, SL 1.0 ATR:    467 /     24 /     68 | total    559 DD   164 win 53% SL rata2 7.0
+SL maks 12.0, SL 0.75 ATR:    269 /    116 /     89 | total    474 DD   116 win 52% SL rata2 5.6
+SL maks  5.0, SL 1.0 ATR:    299 /     50 /    120 | total    470 DD   140 win 53% SL rata2 4.6
+SL maks  5.0, SL 0.75 ATR:    215 /     61 /     93 | total    369 DD   135 win 52% SL rata2 4.2
+SL maks  3.0, SL 1.0 ATR:     17 /    -96 /     30 | total    -49 DD   141 win 49% SL rata2 3.0
+SL maks  3.0, SL 0.75 ATR:    -28 /    -96 /     30 | total    -94 DD   170 win 49% SL rata2 2.9

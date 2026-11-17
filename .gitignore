@@ -1,0 +1,10 @@
+# setelan lokal: berisi PIN dashboard dan path komputer ini
+dashboard/config.php
+
+# setelan Claude lokal
+.claude/settings.local.json
+
+# sampah OS / editor
+Thumbs.db
+.DS_Store
+*.log

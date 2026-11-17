@@ -1,0 +1,40 @@
+{
+  "v": "3.03",
+  "ts": 1794830400,
+  "written": 1794830400,
+  "refreshed": 1794830280,
+  "refresh_min": 5,
+  "account": {"server": "CONTOH-Demo", "login_tail": "000", "demo": true, "currency": "USD", "balance": 2000.00, "equity": 2012.40, "free_margin": 1988.10, "margin_level": 8200.0, "leverage": 500, "connected": true},
+  "symbol": {"name": "XAUUSD-VIP", "bid": 4071.52, "ask": 4071.85, "spread": 0.33, "digits": 2},
+  "bias": {"score": 71, "ok": true, "tf": [{"n": "D1", "b": 1}, {"n": "H4", "b": 1}, {"n": "H1", "b": 1}, {"n": "M30", "b": 0}, {"n": "M15", "b": 1}, {"n": "M5", "b": -1}, {"n": "M1", "b": 1}]},
+  "risk": {"open_risk": 21.40, "max_open_risk": 100.00, "day_start_equity": 2003.10, "day_pl": 9.30, "daily_loss_pct": 4.00, "locked": false, "paused": false, "news_blocked": false, "news_reason": "", "algo": true, "lot": 0.01, "sl_min": 0, "sl_max": 0, "mode": 0, "tp_mode": 0, "tp_usd": 10, "trail_start": 5, "trail_dist": 3, "be_at": 5, "be_lock": 1, "news_filter": true, "news_before": 30, "news_after": 30},
+  "sessions": {"asia": true, "london": true, "ny": true, "now": 1, "london_hour": 9, "ny_hour": 15},
+  "engines": [
+    {"id": "DIP", "name": "Scalping koreksi M5", "type": "dip", "tf": "M5", "enabled": true, "status": "Tren naik, pasar ramai, tunggu 3 candle merah", "positions": 0, "float_pl": 0.00, "total_pl": 18.40, "trades": 22, "wins": 12, "today_pl": 5.80, "today_trades": 3},
+    {"id": "RH", "name": "Range Hybrid M5", "type": "range", "tf": "M5", "enabled": true, "status": "OFF | skor 22 | range 4052.10-4078.30 (lebar 26.20, boleh 11.51-26.72, umur 14) | sentuh H1/L2 | ADX 27.4 | ATR 4.11", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
+    {"id": "HB1", "name": "Breakout H4", "type": "breakout", "tf": "H4", "enabled": true, "status": "Tunggu tutup > 4098.40", "positions": 0, "float_pl": 0.00, "total_pl": 41.20, "trades": 6, "wins": 3, "today_pl": 0.00, "today_trades": 0},
+    {"id": "HB2", "name": "Breakout H1", "type": "breakout", "tf": "H1", "enabled": true, "status": "Posisi aktif", "positions": 1, "float_pl": 8.10, "total_pl": 12.60, "trades": 14, "wins": 5, "today_pl": 0.00, "today_trades": 0},
+    {"id": "HB3", "name": "Breakout M30", "type": "breakout", "tf": "M30", "enabled": false, "status": "-", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
+    {"id": "TL1", "name": "Garis tren H1", "type": "trendline", "tf": "H1", "enabled": true, "status": "Garis 4064.10 (4 sentuhan), tunggu break", "positions": 0, "float_pl": 0.00, "total_pl": -9.80, "trades": 5, "wins": 1, "today_pl": 0.00, "today_trades": 0},
+    {"id": "TL2", "name": "Garis tren M30", "type": "trendline", "tf": "M30", "enabled": true, "status": "Break naik, tunggu retest", "positions": 0, "float_pl": 0.00, "total_pl": 22.10, "trades": 9, "wins": 3, "today_pl": 0.00, "today_trades": 0},
+    {"id": "ORB", "name": "ORB sesi 03:00", "type": "orb", "tf": "M5", "enabled": true, "status": "Sudah trade hari ini", "positions": 1, "float_pl": 4.30, "total_pl": 6.40, "trades": 31, "wins": 19, "today_pl": 0.00, "today_trades": 0},
+    {"id": "MOM", "name": "Momentum M30", "type": "momentum", "tf": "M30/M5", "enabled": false, "status": "-", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
+    {"id": "SMC", "name": "SMC M15", "type": "smc", "tf": "M15", "enabled": false, "status": "-", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0},
+    {"id": "MAIN", "name": "Strategi utama", "type": "main", "tf": "M15", "enabled": false, "status": "Strategi utama nonaktif", "positions": 0, "float_pl": 0.00, "total_pl": 0.00, "trades": 0, "wins": 0, "today_pl": 0.00, "today_trades": 0}
+  ],
+  "positions": [
+    {"ticket": 900001, "engine": "HB2", "side": "BUY", "lot": 0.01, "open": 4063.42, "sl": 4052.10, "tp": 4097.38, "price": 4071.52, "pl": 8.10, "time": 1794812400},
+    {"ticket": 900002, "engine": "ORB", "side": "BUY", "lot": 0.01, "open": 4067.20, "sl": 4067.50, "tp": 4078.30, "price": 4071.52, "pl": 4.30, "time": 1794801900}
+  ],
+  "closed": [
+    {"engine": "TL2", "side": "BUY", "lot": 0.01, "open": 4044.70, "open_time": 1794736800, "close": 4058.90, "pl": 14.20, "time": 1794744000, "reason": "SL"},
+    {"engine": "ORB", "side": "SELL", "lot": 0.01, "open": 4043.65, "open_time": 1794715200, "close": 4049.75, "pl": -6.10, "time": 1794722400, "reason": "SL"},
+    {"engine": "HB1", "side": "BUY", "lot": 0.01, "open": 4013.80, "open_time": 1794636000, "close": 4041.30, "pl": 27.50, "time": 1794657600, "reason": "SL"},
+    {"engine": "TL1", "side": "SELL", "lot": 0.01, "open": 4013.75, "open_time": 1794564000, "close": 4022.15, "pl": -8.40, "time": 1794571200, "reason": "SL"}
+  ],
+  "news": [
+    {"t": 1794846600, "name": "Core Retail Sales m/m", "imp": 3},
+    {"t": 1794868200, "name": "FOMC Member Speech", "imp": 2},
+    {"t": 1794933000, "name": "Unemployment Claims", "imp": 3}
+  ]
+}

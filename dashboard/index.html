@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<meta name="description" content="Pantau akun, mesin strategi, dan pengaman risiko EA MTRB Pro dari satu halaman.">
+<title>MTRB Pro: dashboard EA emas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e6be5a'/%3E%3Cpath d='M9 22V10l7 8 7-8v12' fill='none' stroke='%231a1405' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+/* Satu sistem: 3 radius, 1 gaya kartu, 3 gaya tombol, 1 aksen (emas), teks minimal 12px, sasaran sentuh 44px. */
+:root{
+  --bg:#0d0f14; --card:#161920; --card2:#1f232d; --line:#2a2f3b; --line2:#3b4252;
+  --text:#e9ecf2; --soft:#c5cbd8; --dim:#939cae;
+  --gold:#e6be5a; --gold-ink:#1a1405; --up:#3fcf8e; --dn:#f2707b; --warn:#f0a93c; --info:#6ea8ff;
+  --r-lg:16px; --r-md:12px; --r-sm:8px;
+  --gap:12px; --pad:16px; --rail:216px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* kerangka */
+.app{max-width:560px;margin:0 auto;min-height:100vh;padding:0 var(--pad) calc(88px + env(safe-area-inset-bottom))}
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 0;display:flex;align-items:center;gap:10px;border-bottom:1px solid transparent}
+.mark{width:36px;height:36px;border-radius:var(--r-sm);background:var(--gold);color:var(--gold-ink);display:grid;place-items:center;font-weight:800;flex:none}
+.brand{min-width:0;line-height:1.25}
+.bname{display:block;font-weight:700;font-size:16px}
+.brand small{display:block;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp{flex:1}
+.pill{font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;background:var(--card2);color:var(--dim);white-space:nowrap}
+.pill.ok{color:var(--up)} .pill.bad{color:var(--dn)} .pill.warn{color:var(--warn)} .pill.gold{background:var(--gold);color:var(--gold-ink)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px}
+h1{font-size:26px;line-height:1.2;margin:12px 0 16px;letter-spacing:-.3px}
+h2{font-size:14px;font-weight:600;color:var(--dim);margin:24px 0 10px}
+h3{margin:0;font-size:19px;line-height:1.25}
+
+/* kartu dan isi */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--pad)}
+.card + .card{margin-top:var(--gap)}
+.card.list{padding:2px var(--pad)}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.muted{color:var(--dim)} .small{font-size:13px} .up{color:var(--up)} .dn{color:var(--dn)}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:32px;font-weight:700;letter-spacing:-.6px;line-height:1.15}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.kv .k{font-size:12px;color:var(--dim)} .kv .v{font-weight:600;font-size:15px}
+.hr{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.bar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:10px}
+.bar > i{display:block;height:100%;background:var(--gold);border-radius:99px;transition:width .3s}
+.bar.hot > i{background:var(--dn)}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block}
+.ico{width:40px;height:40px;border-radius:var(--r-md);background:var(--card2);color:var(--soft);display:grid;place-items:center;flex:none}
+.ico.up{color:var(--up)} .ico.dn{color:var(--dn)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font-size:12px;font-weight:600;line-height:1.3;padding:3px 8px;border-radius:var(--r-sm);background:var(--card2);color:var(--dim);white-space:nowrap}
+.tag.ok{color:var(--up)} .tag.warn{color:var(--warn)} .tag.bad{color:var(--dn)} .tag.na{color:var(--info)}
+.empty{text-align:center;color:var(--dim);padding:28px 8px}
+.note{border-radius:var(--r-md);padding:12px 14px;font-size:14px;margin-bottom:var(--gap);background:rgba(240,169,60,.12);color:var(--warn)}
+.note.bad{background:rgba(242,112,123,.12);color:var(--dn)}
+.hint{font-size:13px;color:var(--dim);margin:8px 2px 0}
+
+/* daftar baris (posisi, sesi, news, setelan) */
+.pos{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.pos:last-child{border-bottom:0}
+.pos.mid{align-items:center}
+
+/* tab posisi */
+.seg{display:flex;gap:20px;border-bottom:1px solid var(--line);margin:24px 0 var(--gap)}
+.seg button{min-height:44px;color:var(--dim);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.seg button:hover{color:var(--soft)}
+.seg button.on{color:var(--text);border-color:var(--gold)}
+.cnt{font-size:12px;background:var(--card2);padding:1px 8px;border-radius:99px;margin-left:6px;color:var(--dim)}
+
+/* kartu mesin */
+.bot{cursor:pointer;display:flex;flex-direction:column;transition:border-color .15s,transform .1s}
+.bot:hover{border-color:var(--line2)}
+.bot:active{transform:scale(.995)}
+.bot.off .ico,.bot.off .name,.bot.off .status,.bot.off .grid3{opacity:.55}
+.bot .name{font-weight:700;font-size:16px;line-height:1.3}
+.bot .status{flex:1;margin:14px 0;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--soft);overflow-wrap:anywhere}
+
+/* saklar: jalur 46x28 di dalam sasaran sentuh 52x44 */
+.sw{width:52px;height:44px;position:relative;flex:none;border-radius:var(--r-md)}
+.sw::before{content:"";position:absolute;left:3px;top:8px;width:46px;height:28px;border-radius:99px;background:#3a4150;transition:background .15s}
+.sw::after{content:"";position:absolute;left:6px;top:11px;width:22px;height:22px;border-radius:50%;background:#cfd4de;transition:transform .15s,background .15s}
+.sw:hover::before{background:#454d5f}
+.sw.on::before{background:var(--gold)} .sw.on:hover::before{background:#efcb72}
+.sw.on::after{transform:translateX(18px);background:#fff}
+
+/* tombol: utama (emas), biasa, bahaya */
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:46px;padding:0 16px;border-radius:var(--r-md);font-weight:700;text-align:center;text-decoration:none;background:var(--card2);border:1px solid var(--line);transition:background .15s,border-color .15s,transform .1s}
+.btn:hover{border-color:var(--line2);background:#252a36}
+.btn:active{transform:scale(.985)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)} .btn.gold:hover{background:#efcb72;border-color:#efcb72}
+.btn.danger{background:rgba(242,112,123,.12);border-color:transparent;color:var(--dn)} .btn.danger:hover{background:rgba(242,112,123,.2)}
+.x{width:44px;height:44px;border-radius:50%;background:var(--card2);display:grid;place-items:center;flex:none;transition:background .15s}
+.x:hover{background:#2a303d}
+
+/* setelan angka */
+.set{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.set label{flex:1;min-width:0;font-weight:600}
+.set label span{display:block;font-weight:400;font-size:13px;color:var(--dim)}
+.inp{width:92px;height:44px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--text);font:inherit;font-size:16px;font-weight:600;padding:0 12px;text-align:right;font-variant-numeric:tabular-nums;transition:border-color .15s}
+.inp:hover{border-color:var(--line2)}
+.inp.full{width:100%;text-align:left}
+.unit{width:32px;font-size:13px;color:var(--dim);flex:none}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 0 4px}
+.opt{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);color:var(--soft);font-weight:600;text-align:left;transition:border-color .15s,color .15s}
+.opt:hover{border-color:var(--line2)}
+.opt.on{border-color:var(--gold);color:var(--text)}
+
+/* bias */
+.tfs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:12px}
+.tf{text-align:center;background:var(--card2);border-radius:var(--r-sm);padding:6px 0;font-size:12px;color:var(--dim)}
+.tf b{display:block}
+
+/* navigasi: bar bawah di HP, rel kiri di layar lebar */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(13,15,20,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs .inner{max-width:560px;margin:0 auto;display:flex}
+.tabs button{flex:1;min-height:56px;color:var(--dim);font-size:12px;font-weight:600;transition:color .15s,background .15s}
+.tabs button .i{margin:0 auto 3px;width:22px;height:22px}
+.tabs button:hover{color:var(--soft)}
+.tabs button.on{color:var(--gold)}
+.rbrand{display:none}
+
+/* lembar detail, dialog, toast */
+.veil{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.62);display:none;align-items:flex-end;justify-content:center}
+.veil.show{display:flex}
+.sheet{width:100%;max-width:560px;max-height:88vh;overflow:auto;background:var(--card);border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));border:1px solid var(--line);border-bottom:0;animation:rise .2s ease-out}
+.sheet ul{margin:0;padding-left:18px;color:var(--soft)} .sheet li{margin:6px 0}
+.modal{align-items:center;padding:20px}
+.modal .box{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;animation:rise .18s ease-out}
+@keyframes rise{from{transform:translateY(12px)}to{transform:none}}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:#2a303d;color:var(--text);padding:10px 16px;border-radius:var(--r-md);font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+@media (min-width:960px){
+  body{padding-left:var(--rail)}
+  .app{max-width:1160px;padding:0 32px 48px}
+  .top{padding:16px 0}
+  .top .mark,.top .bname{display:none}
+  .brand small{font-size:14px}
+  h1{font-size:30px;margin:8px 0 20px}
+  .tabs{right:auto;top:0;width:var(--rail);border-top:0;border-right:1px solid var(--line);background:var(--bg);backdrop-filter:none;padding:16px 12px}
+  .tabs .inner{flex-direction:column;gap:4px;max-width:none}
+  .rbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:0 8px 20px}
+  .tabs button{flex:none;display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:var(--r-md);font-size:15px;text-align:left}
+  .tabs button .i{margin:0}
+  .tabs button:hover{background:var(--card)}
+  .tabs button.on{background:var(--card2);color:var(--text)}
+  .tabs button.on .i{color:var(--gold)}
+  .cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:24px;align-items:start}
+  .cols.even{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cols > div > h2:first-child,.cols > div > .seg:first-child{margin-top:0}
+  #bots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap)}
+  #bots .card + .card{margin-top:0}
+  .veil{align-items:center;padding:24px}
+  .sheet{border-radius:var(--r-lg);border-bottom:1px solid var(--line);padding:22px}
+  .toast{bottom:32px;left:calc(50% + var(--rail) / 2)}
+}
+@media (min-width:1400px){ #bots{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="mark" aria-hidden="true">M</div>
+    <div class="brand"><span class="bname">MTRB Pro</span><small id="sub">dashboard</small></div>
+    <div class="sp"></div>
+    <span class="pill" id="mode" hidden></span>
+    <span class="pill" id="conn" role="status"><span class="dot"></span>Memuat</span>
+  </header>
+
+  <main>
+    <div id="alerts"></div>
+
+    <section id="p-akun">
+      <h1>Akun</h1>
+      <div class="cols">
+        <div id="acct"></div>
+        <div>
+          <div class="seg" role="tablist" aria-label="Daftar posisi">
+            <button class="on" data-pl="open" role="tab" aria-selected="true">Terbuka<span class="cnt" id="c-open">0</span></button>
+            <button data-pl="closed" role="tab" aria-selected="false">Tertutup<span class="cnt" id="c-closed">0</span></button>
+          </div>
+          <div class="card list" id="plist"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="p-robot" hidden>
+      <h1>Robot</h1>
+      <div id="bsum"></div>
+      <h2>Mesin strategi</h2>
+      <p class="hint" id="refr" style="margin:-4px 0 12px"></p>
+      <div id="bots"></div>
+    </section>
+
+    <section id="p-atur" hidden>
+      <h1>Pengaturan</h1>
+      <div id="sets"></div>
+    </section>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="Halaman">
+  <div class="rbrand"><div class="mark" aria-hidden="true">M</div>MTRB Pro</div>
+  <div class="inner">
+    <button class="on" data-tab="akun" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12.5h18"/></svg>Akun</button>
+    <button data-tab="robot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4.5M9 13.5h.01M15 13.5h.01M2 13v2M22 13v2"/></svg>Robot</button>
+    <button data-tab="atur"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Pengaturan</button>
+  </div>
+</nav>
+
+<div class="veil" id="veil"><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detail mesin"></div></div>
+<div class="veil modal" id="modal"><div class="box" id="mbox" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const DEMO = new URLSearchParams(location.search).has("demo");
+const Q = DEMO ? "&demo=1" : "";
+let S = null, plTab = "open", pin = "", openSheet = null, lastOk = 0;
+const PEND = {};
+let holdSets = 0;
+try { pin = localStorage.getItem("mtrb_pin") || ""; } catch (e) {}
+
+// Satu keluarga ikon garis (24px, tebal 1.8) untuk semua mesin dan arah posisi.
+const ICON = {
+  breakout: '<path d="M5 19 19 5M10 5h9v9"/>',
+  trendline: '<path d="M4 18 20 6"/><circle cx="8.5" cy="14.6" r="1.6"/><circle cx="15.5" cy="9.4" r="1.6"/>',
+  orb: '<rect x="3.5" y="7" width="9" height="10" rx="1.5"/><path d="M12.5 12H20M17 9l3 3-3 3"/>',
+  dip: '<path d="M3 7l6 9 4-5 3 3 5-8"/>',
+  rsima: '<path d="M3 12c3-7 6-7 9 0s6 7 9 0"/>',
+  range: '<path d="M3 6h18M3 18h18M6 15l4-6 4 6 4-6"/>',
+  momentum: '<path d="M5 6l6 6-6 6M13 6l6 6-6 6"/>',
+  smc: '<path d="M12 3l8 9-8 9-8-9z"/><path d="M8.5 12h7"/>',
+  main: '<path d="M5 20V10M12 20V4M19 20v-7"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>'
+};
+const ic = n => '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[n] || ICON.main) + "</svg>";
+
+// Keterangan tiap mesin: aturan singkat dan hasil pengujian sejauh ini.
+const META = {
+  breakout: { icon: "breakout", kind: "Breakout", rules: [
+    "Arah mengikuti tren harian (D1).",
+    "Entry saat candle menutup di luar high/low 55 bar terakhir.",
+    "SL 1,5 × ATR, TP 3 kali jarak SL.",
+    "Setelah untung 1 kali jarak SL, SL mengikuti harga." ] },
+  trendline: { icon: "trendline", kind: "Garis tren", rules: [
+    "Arah mengikuti tren harian (D1).",
+    "Garis tren ditarik otomatis dari swing, minimal 3 sentuhan.",
+    "Entry tiga langkah: break, retest, lalu candle menutup searah.",
+    "Tanpa TP: keluar saat garis tren seberang ditembus." ] },
+  orb: { icon: "orb", kind: "Opening range", rules: [
+    "Range diukur dari 30 menit pertama sesi.",
+    "Entry saat candle M5 menutup di luar range, maksimal 1 trade per hari.",
+    "SL di tengah range, TP 2 kali jarak SL.",
+    "Posisi ditutup paling lambat 6 jam setelah sesi buka." ] },
+  dip: { icon: "dip", kind: "Scalping", rules: [
+    "Tren besar dari EMA 2400 di M5 (setara EMA50 H4); hanya trade searah tren.",
+    "Hanya saat pasar ramai: ATR M5 di atas 1,25 kali median 5 hari.",
+    "Tiga candle M5 berturut-turut melawan tren (koreksi), lalu masuk searah tren.",
+    "SL 1 × ATR, TP 1 kali SL, posisi ditutup paling lambat 60 menit." ] },
+  range: { icon: "range", kind: "Range", rules: [
+    "Range = high/low 40 candle terakhir, kedua tepinya sudah bertahan minimal 12 candle. Skor kualitas 0–100 dari ADX, lebar range, jumlah sentuhan, false break, dan kestabilan ATR.",
+    "Mode otomatis: STRICT (skor ≥ 75, ADX < 19), DETAIL (skor ≥ 48), atau OFF (ADX ≥ 23,5, range lebih sempit dari 2,8 × ATR, atau lebih lebar dari 6,5 × ATR).",
+    "Entry hanya kalau tepi atas dan tepi bawah masing-masing sudah disentuh minimal 2 kali, dan ATR tidak sedang naik tajam.",
+    "STRICT: sentuh tepi + RSI ≥ 70 (jual) / ≤ 30 (beli) + pinbar kuat atau engulfing berbadan besar. DETAIL: sentuh tepi + RSI ≥ 63 / ≤ 37 + pinbar atau engulfing.",
+    "SL di luar range + buffer. STRICT: TP di tepi seberang, SL ke breakeven setelah 55% jalan. DETAIL: di tengah range tutup separuh (atau semua kalau lot tidak bisa dibagi), sisanya trailing.",
+    "Hanya sesi Asia, maksimal 1 posisi, jeda 90 menit setelah 2 loss beruntun, lot dari % risiko dengan batas 0,10." ] },
+  rsima: { icon: "rsima", kind: "RSI + MA", rules: [
+    "Garis sinyal = RSI 50 yang dihaluskan WMA 50; di atas 50 hanya buy, di bawah 50 hanya sell.",
+    "Entry pada candle pertama yang menutup di sisi MA 100 dan searah, satu kali per arah sinyal.",
+    "SL di swing low/high 10 candle terakhir.",
+    "Keluar saat garis sinyal balik melewati 50." ] },
+  momentum: { icon: "momentum", kind: "Momentum", rules: [
+    "Dua candle searah di timeframe peta, candle pertama impulsif.",
+    "Entry di timeframe kecil saat harga retrace 50% ke dalam range.",
+    "SL di balik range, TP 1:2." ] },
+  smc: { icon: "smc", kind: "SMC", rules: [
+    "Liquidity sweep, lalu displacement yang meninggalkan fair value gap.",
+    "Entry saat harga kembali ke zona FVG atau order block.",
+    "SL di balik sweep, TP 1:2." ] },
+  main: { icon: "main", kind: "Indikator", rules: [
+    "Mode entry berbasis indikator (MA5/10/30 + MACD dan lainnya).",
+    "Memakai skor bias 7 timeframe." ] }
+};
+const VERDICT = {
+  HB1: ["ok", "Lolos uji", "Positif di data 2016–2021 dan 2022–2026."],
+  HB2: ["ok", "Lolos uji", "Positif di kedua paruh data 2024–2026. Belum diuji di tahun-tahun tenang."],
+  HB3: ["warn", "Kualitas rendah", "Menambah banyak trade tapi hampir tidak menambah profit, dan memperdalam drawdown."],
+  TL1: ["ok", "Lolos uji", "Positif di data 2016–2021 dan 2022–2026."],
+  TL2: ["ok", "Lolos uji", "Positif di kedua paruh data 2024–2026. Belum diuji di tahun-tahun tenang."],
+  ORB: ["warn", "Bukti lemah", "Untung tipis dan tidak merata; impas di paruh pertama data 2024–2026."],
+  DIP: ["warn", "Bukti lemah", "Kandidat terbaik dari 23.168 kombinasi scalping: untung tipis di tiga periode (profit factor 1,25 → 1,01 → 1,06), sekitar 4 trade per hari. Belum diuji di tester MetaTrader."],
+  RH: ["na", "Belum diuji", "Belum pernah di-backtest. Batas lebar range sekarang mengikuti ATR, dan tiap tepi harus sudah disentuh 2 kali: di data M5 sesi Asia sekitar 2,9% candle yang lolos, sebelum syarat RSI dan pola candle. Lot dihitung dari % risiko (maksimal 0,10), jadi bisa lebih besar dari 0,01."],
+  RSM: ["na", "Belum lolos tester", "Positif di simulasi candle M5 (Jun 2025 – Nov 2026), tetapi belum diuji di tester MetaTrader dan hanya pada masa reli emas."],
+  MOM: ["bad", "Tidak lolos uji", "Versi M30/M5 rugi di kedua paruh data 2024–2026; 9 dari 11 variasi tidak bertahan."],
+  SMC: ["bad", "Tidak lolos uji", "Rugi atau impas pada 2016–2021 di semua variasi yang diuji."],
+  MAIN: ["bad", "Tidak lolos uji", "Mode-mode entry berbasis indikator rugi di backtest."]
+};
+
+const money = (n, cur) => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (cur ? " " + cur : "");
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cls = n => (n > 0 ? "up" : n < 0 ? "dn" : "muted");
+const price = (n, d) => Number(n).toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+const p2 = n => String(n).padStart(2, "0");
+// waktu dari EA adalah waktu server broker; ditampilkan apa adanya
+const tsrv = e => { const d = new Date(e * 1000); return p2(d.getUTCDate()) + "/" + p2(d.getUTCMonth() + 1) + " " + p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()); };
+const kv = (k, v, c) => '<div class="kv"><div class="k">' + k + '</div><div class="v num ' + (c || "") + '">' + v + "</div></div>";
+const sw = (on, label, attr) => '<button class="sw' + (on ? " on" : "") + '" role="switch" aria-checked="' + !!on + '" aria-label="' + esc(label) + '" ' + attr + "></button>";
+const sideIco = side => '<div class="ico ' + (side === "BUY" ? "up" : "dn") + '">' + ic(side === "BUY" ? "up" : "down") + "</div>";
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2400); }
+
+async function api(action, body) {
+  const opt = { headers: { "X-Pin": pin }, cache: "no-store" };
+  if (body) { opt.method = "POST"; opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch("api.php?a=" + action + Q, opt);
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (r.status === 401) { askPin(); throw new Error("pin"); }
+  if (!j) throw new Error("http " + r.status);
+  return j;
+}
+
+async function control(body, okMsg) {
+  try {
+    const j = await api("control", body);
+    if (!j.ok) throw new Error(j.error || "gagal");
+    toast(DEMO ? "Mode contoh: perintah tidak dikirim ke EA" : okMsg);
+    return true;
+  } catch (e) { if (e.message !== "pin") toast("Gagal mengirim perintah (" + e.message + ")"); return false; }
+}
+
+function setConn(kind, text) { const c = $("#conn"); c.className = "pill " + kind; c.innerHTML = '<span class="dot"></span>' + esc(text); }
+
+async function poll() {
+  try {
+    const j = await api("status");
+    if (!j.ok) { S = null; renderEmpty(j.error); return; }
+    S = j.data; S._age = j.age; S._demo = !!j.demo; lastOk = Date.now();
+    // EA butuh beberapa detik untuk membaca perintah: sementara itu tampilkan pilihan terakhir pengguna
+    const now = Date.now();
+    Object.keys(PEND).forEach(k => {
+      if (PEND[k].t < now) { delete PEND[k]; return; }
+      if (k === "paused") S.risk.paused = PEND[k].on;
+      else if (k === "flag:news_filter") S.risk.news_filter = PEND[k].on;
+      else if (k.indexOf("flag:sess_") === 0) { if (S.sessions) S.sessions[k.slice(10) === "asia" ? "asia" : k.slice(10) === "london" ? "london" : "ny"] = PEND[k].on; }
+      else { const e = S.engines.find(x => x.id === k); if (e) e.enabled = PEND[k].on; }
+    });
+    render();
+  } catch (e) {
+    if (e.message === "pin") return;
+    setConn("bad", "Server tidak terjangkau");
+  }
+}
+
+function renderEmpty(err) {
+  setConn("bad", "EA belum terhubung");
+  $("#mode").hidden = true;
+  const msg = err === "remote_blocked"
+    ? "Dashboard ini hanya bisa dibuka dari komputer tempat ia dipasang. Untuk membukanya dari perangkat lain, isi PIN di berkas config.php."
+    : "Belum ada data dari EA. Pasang MTRB Pro di chart MetaTrader 5 dan pastikan input “Kirim status ke dashboard” menyala.";
+  $("#alerts").innerHTML = '<div class="note">' + esc(msg) + "</div>";
+  $("#acct").innerHTML = '<div class="card"><div class="empty">Menunggu data akun…</div><a class="btn" href="?demo=1">Lihat contoh tampilan</a></div>';
+  $("#plist").innerHTML = '<div class="empty">Menunggu data dari EA…</div>';
+  $("#bsum").innerHTML = ""; $("#refr").textContent = "";
+  $("#bots").innerHTML = '<div class="card empty">Menunggu data dari EA…</div>';
+  $("#sets").innerHTML = '<div class="card empty">Menunggu data dari EA…</div>';
+}
+
+function render() {
+  const a = S.account, r = S.risk, cur = a.currency, dg = S.symbol.digits;
+  // koneksi
+  if (S._demo) setConn("warn", "Data contoh");
+  else if (S._age > 10) setConn("bad", "EA diam " + S._age + " dtk");
+  else setConn("ok", "Terhubung");
+  const m = $("#mode"); m.hidden = false; m.textContent = a.demo ? "Demo" : "Real"; m.className = "pill " + (a.demo ? "" : "gold");
+  $("#sub").textContent = S.symbol.name + " · " + price(S.symbol.bid, dg);
+
+  // peringatan
+  let al = "";
+  if (!S._demo && S._age > 10) al += '<div class="note bad">EA tidak mengirim data sejak ' + S._age + " detik lalu. Periksa apakah MetaTrader 5 masih berjalan dan EA terpasang di chart.</div>";
+  if (!r.algo) al += '<div class="note bad">Algo Trading di MetaTrader 5 mati: EA tidak bisa membuka atau menutup posisi.</div>';
+  if (r.paused) al += '<div class="note">Semua entry baru sedang dihentikan dari dashboard. Posisi yang sudah terbuka tetap dikelola.</div>';
+  if (r.locked) al += '<div class="note bad">Batas rugi harian tercapai: tidak ada entry baru sampai besok.</div>';
+  if (r.news_blocked) al += '<div class="note">Jeda news: ' + esc(r.news_reason || "news berdampak tinggi") + ".</div>";
+  $("#alerts").innerHTML = al;
+
+  // akun
+  const riskPct = r.max_open_risk > 0 ? Math.min(100, r.open_risk / r.max_open_risk * 100) : 0;
+  $("#acct").innerHTML =
+    '<div class="card">' +
+      '<div class="row small muted"><span class="grow">' + esc(a.server) + " · •••" + esc(a.login_tail) + "</span><span>1:" + esc(a.leverage) + "</span></div>" +
+      '<div class="small muted" style="margin-top:14px">Equity</div>' +
+      '<div class="big num">' + money(a.equity, cur) + "</div>" +
+      '<div class="grid3 hr">' +
+        kv("Saldo", money(a.balance)) + kv("Margin bebas", money(a.free_margin)) + kv("Hari ini", signed(r.day_pl), cls(r.day_pl)) +
+      "</div>" +
+    "</div>" +
+    '<div class="card">' +
+      '<div class="row"><span class="grow small muted">Risiko terbuka</span><span class="small muted">' + (r.max_open_risk > 0 ? "batas " + money(r.max_open_risk) : "tanpa batas") + "</span></div>" +
+      '<div class="num" style="font-weight:700;font-size:20px">' + money(r.open_risk, cur) + "</div>" +
+      '<div class="bar' + (riskPct >= 80 ? " hot" : "") + '"><i style="width:' + riskPct.toFixed(0) + '%"></i></div>' +
+      '<div class="small muted" style="margin-top:10px">Jumlah rugi kalau semua posisi kena stop loss sekarang.</div>' +
+    "</div>";
+
+  // posisi
+  $("#c-open").textContent = S.positions.length; $("#c-closed").textContent = S.closed.length;
+  const names = {}; S.engines.forEach(e => names[e.id] = e.name);
+  let h = "";
+  if (plTab === "open") {
+    if (!S.positions.length) h = '<div class="empty">Tidak ada posisi terbuka.</div>';
+    S.positions.forEach(p => {
+      h += '<div class="pos">' + sideIco(p.side) + '<div class="grow">' +
+        '<div class="row"><b class="grow">' + esc(names[p.engine] || p.engine) + '</b><b class="num ' + cls(p.pl) + '">' + signed(p.pl) + "</b></div>" +
+        '<div class="small muted"><span class="' + (p.side === "BUY" ? "up" : "dn") + '">' + (p.side === "BUY" ? "Beli" : "Jual") + "</span> " + p.lot.toFixed(2) + " lot di " + price(p.open, dg) + (p.time > 0 ? " · " + tsrv(p.time) : "") + "</div>" +
+        '<div class="tags">' +
+        (p.sl > 0 ? '<span class="tag">SL ' + price(p.sl, dg) + "</span>" : '<span class="tag bad">Tanpa SL</span>') +
+        (p.tp > 0 ? '<span class="tag">TP ' + price(p.tp, dg) + "</span>" : '<span class="tag">Tanpa TP</span>') + "</div></div></div>";
+    });
+  } else {
+    if (!S.closed.length) h = '<div class="empty">Belum ada trade tertutup.</div>';
+    S.closed.forEach(p => {
+      const mv = (p.close - p.open) * (p.side === "BUY" ? 1 : -1);
+      h += '<div class="pos">' + sideIco(p.side) + '<div class="grow">' +
+        '<div class="row"><b class="grow">' + esc(names[p.engine] || p.engine) + '</b><b class="num ' + cls(p.pl) + '">' + signed(p.pl) + "</b></div>" +
+        '<div class="small muted">' + (p.side === "BUY" ? "Beli" : "Jual") + " " + p.lot.toFixed(2) + " lot</div>" +
+        '<div class="grid2 small" style="margin-top:8px">' +
+          '<div><span class="muted">Entry</span> <b class="num">' + (p.open > 0 ? price(p.open, dg) : "–") + '</b><div class="muted">' + (p.open_time > 0 ? tsrv(p.open_time) : "") + "</div></div>" +
+          '<div><span class="muted">Tutup</span> <b class="num">' + price(p.close, dg) + '</b><div class="muted">' + tsrv(p.time) + "</div></div>" +
+        "</div>" +
+        '<div class="tags"><span class="tag">' + esc(p.reason) + "</span>" +
+          (p.open > 0 ? '<span class="tag">' + (mv >= 0 ? "+" : "−") + price(Math.abs(mv), dg) + " harga</span>" : "") +
+        "</div></div></div>";
+    });
+  }
+  $("#plist").innerHTML = h;
+
+  // robot
+  let tot = 0, fl = 0, nOn = 0;
+  S.engines.forEach(e => { tot += e.total_pl; fl += e.float_pl; if (e.enabled) nOn++; });
+  $("#bsum").innerHTML = '<div class="card"><div class="grid3">' +
+    kv("Profit tertutup", signed(tot), cls(tot)) + kv("Posisi berjalan", signed(fl), cls(fl)) + kv("Mesin aktif", nOn + " dari " + S.engines.length) + "</div></div>";
+  $("#refr").textContent = S.refreshed > 0
+    ? "Status diperbarui " + tsrv(S.refreshed).slice(6) + " waktu server" + (S.refresh_min > 0 ? ", tiap " + S.refresh_min + " menit" : "") + ". Entry tetap menunggu candle menutup."
+    : "";
+  const list = S.engines.slice().sort((x, y) => (y.enabled - x.enabled));
+  $("#bots").innerHTML = list.map(e => {
+    const mt = META[e.type] || META.main, v = VERDICT[e.id] || ["na", "", ""];
+    const wr = e.trades ? Math.round(e.wins / e.trades * 100) + "%" : "–";
+    return '<div class="card bot' + (e.enabled ? "" : " off") + '" data-id="' + esc(e.id) + '" tabindex="0" aria-label="Detail ' + esc(e.name) + '">' +
+      '<div class="row"><div class="ico">' + ic(mt.icon) + '</div><div class="grow"><div class="name">' + esc(e.name) + "</div>" +
+      '<div class="tags" style="margin-top:4px"><span class="tag">' + esc(mt.kind) + " · " + esc(e.tf) + "</span>" + (v[1] ? '<span class="tag ' + v[0] + '">' + esc(v[1]) + "</span>" : "") + "</div></div>" +
+      sw(e.enabled, "Nyalakan " + e.name, 'data-sw="' + esc(e.id) + '"') + "</div>" +
+      '<div class="status">' + esc(e.enabled ? (e.status || "-") : "Dimatikan") + "</div>" +
+      '<div class="grid3">' +
+        kv("Profit", signed(e.total_pl), cls(e.total_pl)) + kv("Trade / menang", e.trades + " / " + wr) + kv("Posisi", e.positions ? signed(e.float_pl) : "–", cls(e.float_pl)) +
+      "</div></div>";
+  }).join("");
+
+  renderSettings();
+  if (openSheet) fillSheet(openSheet);
+}
+
+// kartu sesi pasar dan news: saklar per sesi (waktu server broker)
+function sessHtml() {
+  const ss = S.sessions, r = S.risk;
+  if (!ss) return '<h2>Sesi pasar dan news</h2><div class="card small muted">Setelan sesi tersedia setelah EA versi terbaru dimuat di chart.</div>';
+  const hh = n => p2(n) + ":00";
+  const rows = [
+    ["sess_asia", "Asia", "00:00 – " + hh(ss.london_hour), ss.asia, 0],
+    ["sess_london", "London", hh(ss.london_hour) + " – " + hh(ss.ny_hour), ss.london, 1],
+    ["sess_ny", "New York", hh(ss.ny_hour) + " – 24:00", ss.ny, 2]
+  ].map(x => '<div class="pos mid"><div class="grow"><b>' + x[1] + "</b>" + (ss.now === x[4] ? ' <span class="tag ok" style="margin-left:6px">Sekarang</span>' : "") +
+    '<div class="small muted">' + x[2] + " waktu server</div></div>" + sw(x[3], "Entry di sesi " + x[1], 'data-flag="' + x[0] + '"') + "</div>").join("");
+  return "<h2>Sesi pasar</h2>" +
+    '<div class="card list">' + rows + "</div>" +
+    '<p class="hint">Sesi yang dimatikan tidak menerima entry baru. Posisi yang sudah terbuka tetap dikelola.</p>' +
+    "<h2>News</h2>" +
+    '<div class="card"><div class="row"><div class="grow"><b>Hindari news berdampak tinggi</b><div class="small muted">Tidak entry ' + r.news_before + " menit sebelum sampai " + r.news_after + " menit sesudah news USD.</div></div>" +
+    sw(r.news_filter, "Hindari news", 'data-flag="news_filter"') + "</div></div>";
+}
+
+function renderSettings() {
+  const r = S.risk, f = document.activeElement, cur = esc(S.account.currency);
+  if (f && f.classList && f.classList.contains("inp") && f.id !== "pin") return;   // jangan timpa saat sedang mengetik
+  if (Date.now() < holdSets) return;                                 // beri waktu EA membaca setelan yang baru disimpan
+  const tf = S.bias.tf.map(t => '<div class="tf">' + esc(t.n) + '<b class="' + (t.b > 0 ? "up" : t.b < 0 ? "dn" : "muted") + '">' + (t.b > 0 ? "Naik" : t.b < 0 ? "Turun" : "–") + "</b></div>").join("");
+  const news = S.news.length ? S.news.map(n => '<div class="pos mid"><div class="grow"><b>' + esc(n.name) + '</b><div class="small muted">' + tsrv(n.t) + ' waktu server</div></div><span class="tag ' + (n.imp >= 3 ? "bad" : "warn") + '">' + (n.imp >= 3 ? "Tinggi" : "Sedang") + "</span></div>").join("")
+    : '<div class="empty">Tidak ada news USD sedang/tinggi dalam 48 jam.</div>';
+  const set = (id, label, desc, val, unit) => '<div class="set"><label for="' + id + '">' + label + "<span>" + desc + '</span></label><input class="inp" id="' + id + '" inputmode="decimal" autocomplete="off" value="' + val + '"><span class="unit">' + unit + "</span></div>";
+  const d = tpDraft || { mode: r.tp_mode || 0, tp_usd: r.tp_usd || 10, trail_start: r.trail_start || 5, trail_dist: r.trail_dist || 3, be_at: r.be_at || 5, be_lock: r.be_lock == null ? 1 : r.be_lock };
+  const TPM = ["Ikut strategi", "TP tetap", "Trailing stop", "Pindah SL"];
+  const TPD = [
+    "Tiap mesin keluar dengan aturannya sendiri. Tidak ada tambahan.",
+    "Posisi ditutup begitu profitnya mencapai nilai ini. Dipasang juga sebagai TP di broker.",
+    "Setelah profit mencapai nilai mulai, SL mengikuti harga dari belakang dan hanya bergerak maju.",
+    "Setelah profit mencapai nilai pemicu, SL dipindah sekali ke entry plus profit yang dikunci."];
+  const tpHtml =
+    '<div class="opts" role="radiogroup" aria-label="Cara ambil untung">' + TPM.map((n, i) => '<button class="opt' + (d.mode === i ? " on" : "") + '" role="radio" aria-checked="' + (d.mode === i) + '" data-tpm="' + i + '">' + n + "</button>").join("") + "</div>" +
+    '<p class="hint" style="margin:8px 0 2px">' + TPD[d.mode] + "</p>" +
+    (d.mode === 1 ? set("tp-usd", "Target profit", "Per posisi, pada lot posisi itu.", d.tp_usd, cur) : "") +
+    (d.mode === 2 ? set("tp-ts", "Mulai trailing", "Profit posisi saat trailing mulai aktif.", d.trail_start, cur) + set("tp-td", "Jarak trailing", "Jarak SL di belakang harga.", d.trail_dist, cur) : "") +
+    (d.mode === 3 ? set("tp-ba", "Pemicu", "Profit posisi saat SL dipindah.", d.be_at, cur) + set("tp-bl", "Profit dikunci", "0 = SL tepat di harga entry.", d.be_lock, cur) : "") +
+    '<p class="hint" style="margin:12px 0 14px">Berlaku untuk posisi semua mesin, termasuk yang sedang terbuka. Aturan keluar bawaan mesin tetap jalan.</p>' +
+    '<button class="btn gold" id="tpsave">Simpan ambil untung</button>';
+  $("#sets").innerHTML =
+    '<div class="cols even"><div>' +
+      "<h2>Kendali</h2>" +
+      '<div class="card"><div class="row"><div class="grow"><b>Hentikan semua entry baru</b><div class="small muted">Posisi yang sudah terbuka tetap dikelola EA.</div></div>' +
+        sw(r.paused, "Hentikan semua entry baru", 'id="sw-pause"') + "</div></div>" +
+      "<h2>Mode</h2>" +
+      '<div class="card" style="padding-top:2px"><div class="opts" role="radiogroup" aria-label="Mode EA">' +
+        '<button class="opt' + (!r.mode ? " on" : "") + '" role="radio" aria-checked="' + !r.mode + '" data-mode="0">Normal</button>' +
+        '<button class="opt' + (r.mode ? " on" : "") + '" role="radio" aria-checked="' + !!r.mode + '" data-mode="1">Extreme</button></div>' +
+        '<p class="hint" style="margin:8px 0 12px">' + (r.mode
+          ? "Extreme: syarat entry tiap mesin dilonggarkan supaya lebih sering trade. Sinyalnya lebih lemah dan belum diuji."
+          : "Normal: setiap mesin memakai syarat entry bawaannya.") + "</p></div>" +
+      sessHtml() +
+      "<h2>Pengaman</h2>" +
+      '<div class="card" style="padding-top:2px">' +
+        set("in-risk", "Batas total risiko terbuka", "Trade baru ditolak jika total rugi-di-SL melebihi ini. 0 = tanpa batas.", r.max_open_risk, cur) +
+        set("in-loss", "Batas rugi harian", "Semua mesin berhenti entry jika equity hari ini turun sejauh ini. 0 = mati.", r.daily_loss_pct, "%") +
+        set("in-slmin", "SL minimal per trade", "SL yang lebih sempit dilebarkan ke nilai ini. 0 = ikut strategi.", r.sl_min || 0, cur) +
+        set("in-slmax", "SL maksimal per trade", "SL yang lebih lebar dipersempit ke nilai ini. 0 = ikut strategi.", r.sl_max || 0, cur) +
+        '<p class="hint" style="margin:12px 0 14px">Nilai SL dihitung pada lot ' + r.lot.toFixed(2) + ". Isi minimal dan maksimal sama untuk SL tetap.</p>" +
+        '<button class="btn gold" id="save">Simpan pengaman</button>' +
+      "</div>" +
+      "<h2>Ambil untung</h2>" +
+      '<div class="card" style="padding-top:2px">' + tpHtml + "</div>" +
+    "</div><div>" +
+      "<h2>Bias 7 timeframe</h2>" +
+      '<div class="card"><div class="row"><b class="grow">Skor ' + (S.bias.ok ? Math.round(S.bias.score) : "–") + '</b><span class="small muted">−100 turun · +100 naik</span></div><div class="tfs">' + tf + "</div></div>" +
+      "<h2>News USD terdekat</h2>" +
+      '<div class="card list">' + news + "</div>" +
+      "<h2>Info</h2>" +
+      '<div class="card"><div class="grid2">' +
+        kv("Versi EA", esc(S.v)) + kv("Lot per trade", r.lot.toFixed(2)) + kv("Spread", S.symbol.spread.toFixed(2)) + kv("Waktu server", tsrv(S.ts)) +
+      '</div><div class="small muted hr">Hasil backtest bukan jaminan. Label pada tiap mesin menunjukkan hasil pengujian, bukan janji profit.</div></div>' +
+      "<h2>Tindakan darurat</h2>" +
+      '<div class="card"><div class="small muted" style="margin-bottom:12px">Menutup semua posisi milik EA di harga pasar. Tidak bisa dibatalkan.</div><button class="btn danger" id="closeall">Tutup semua posisi</button></div>' +
+    "</div></div>";
+}
+
+let tpDraft = null;                                   // pilihan ambil untung yang belum disimpan
+function tpRead() {
+  const r = S.risk, num = (id, dv) => { const e = $(id); return e ? parseFloat(String(e.value).replace(",", ".")) : dv; };
+  const b = tpDraft || { mode: r.tp_mode || 0, tp_usd: r.tp_usd || 10, trail_start: r.trail_start || 5, trail_dist: r.trail_dist || 3, be_at: r.be_at || 5, be_lock: r.be_lock == null ? 1 : r.be_lock };
+  return { mode: b.mode, tp_usd: num("#tp-usd", b.tp_usd), trail_start: num("#tp-ts", b.trail_start), trail_dist: num("#tp-td", b.trail_dist), be_at: num("#tp-ba", b.be_at), be_lock: num("#tp-bl", b.be_lock) };
+}
+
+function fillSheet(id) {
+  const e = S.engines.find(x => x.id === id); if (!e) return;
+  const mt = META[e.type] || META.main, v = VERDICT[e.id] || ["na", "", ""];
+  const wr = e.trades ? Math.round(e.wins / e.trades * 100) + "%" : "–";
+  $("#sheet").innerHTML =
+    '<div class="row"><div class="ico">' + ic(mt.icon) + '</div><div class="grow"><h3>' + esc(e.name) + '</h3><div class="small muted">' + esc(mt.kind) + " · " + esc(e.tf) + '</div></div><button class="x" id="sx" aria-label="Tutup">' + ic("x") + "</button></div>" +
+    "<h2>Hasil pengujian</h2>" +
+    '<div><span class="tag ' + v[0] + '">' + esc(v[1]) + '</span><div style="margin-top:8px;color:var(--soft)">' + esc(v[2]) + "</div></div>" +
+    "<h2>Status sekarang</h2><div>" + esc(e.enabled ? (e.status || "-") : "Dimatikan") + "</div>" +
+    "<h2>Aturan</h2><ul>" + mt.rules.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>" +
+    "<h2>Hasil di akun ini</h2>" +
+    '<div class="grid3">' +
+      kv("Profit tertutup", signed(e.total_pl), cls(e.total_pl)) + kv("Trade", e.trades) + kv("Menang", wr) +
+      kv("Hari ini", signed(e.today_pl), cls(e.today_pl)) + kv("Trade hari ini", e.today_trades) + kv("Posisi berjalan", e.positions ? signed(e.float_pl) : "–", cls(e.float_pl)) +
+    "</div>" +
+    '<button class="btn ' + (e.enabled ? "" : "gold") + '" id="stog" style="margin-top:20px">' + (e.enabled ? "Matikan mesin ini" : "Nyalakan mesin ini") + "</button>";
+}
+function showSheet(id) { openSheet = id; fillSheet(id); $("#veil").classList.add("show"); }
+function hideSheet() { openSheet = null; $("#veil").classList.remove("show"); }
+
+function confirmBox(title, text, yes, danger, fn) {
+  $("#mbox").innerHTML = "<h3>" + esc(title) + "</h3><div class='muted' style='margin-top:8px'>" + esc(text) + "</div>" +
+    "<div class='grid2' style='margin-top:20px'><button class='btn' id='mno'>Batal</button><button class='btn " + (danger ? "danger" : "gold") + "' id='myes'>" + esc(yes) + "</button></div>";
+  $("#modal").classList.add("show");
+  $("#mno").onclick = () => $("#modal").classList.remove("show");
+  $("#myes").onclick = () => { $("#modal").classList.remove("show"); fn(); };
+  $("#mno").focus();
+}
+function askPin() {
+  $("#mbox").innerHTML = "<h3>Masukkan PIN</h3><label for='pin' class='muted' style='display:block;margin:8px 0 12px'>Dashboard ini dilindungi PIN.</label>" +
+    "<input class='inp full' id='pin' type='password' inputmode='numeric' autocomplete='off'><button class='btn gold' id='pok' style='margin-top:14px'>Masuk</button>";
+  $("#modal").classList.add("show");
+  const go = () => { pin = $("#pin").value; try { localStorage.setItem("mtrb_pin", pin); } catch (e) {} $("#modal").classList.remove("show"); poll(); };
+  $("#pok").onclick = go; $("#pin").onkeydown = e => { if (e.key === "Enter") go(); }; $("#pin").focus();
+}
+
+async function toggleEngine(id) {
+  const e = S && S.engines.find(x => x.id === id); if (!e) return;
+  const on = !e.enabled, v = VERDICT[id] || [];
+  const run = async () => { if (await control({ engine: id, on: on }, e.name + (on ? " dinyalakan" : " dimatikan"))) { PEND[id] = { on: on, t: Date.now() + 7000 }; e.enabled = on; render(); } };
+  if (on && (v[0] === "bad" || v[0] === "warn" || v[0] === "na"))
+    confirmBox("Nyalakan " + e.name + "?", v[1] + ". " + v[2], "Tetap nyalakan", false, run);
+  else run();
+}
+
+document.addEventListener("click", ev => {
+  const t = ev.target;
+  const tab = t.closest("[data-tab]");
+  if (tab) {
+    document.querySelectorAll("[data-tab]").forEach(b => { b.classList.toggle("on", b === tab); if (b === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    ["akun", "robot", "atur"].forEach(n => $("#p-" + n).hidden = n !== tab.dataset.tab); window.scrollTo(0, 0); return;
+  }
+  const pl = t.closest("[data-pl]");
+  if (pl) { plTab = pl.dataset.pl; document.querySelectorAll("[data-pl]").forEach(b => { b.classList.toggle("on", b === pl); b.setAttribute("aria-selected", b === pl); }); if (S) render(); return; }
+  const swb = t.closest("[data-sw]");
+  if (swb) { ev.stopPropagation(); toggleEngine(swb.dataset.sw); return; }
+  const bot = t.closest(".bot");
+  if (bot) { showSheet(bot.dataset.id); return; }
+  if (t.id === "veil" || t.closest("#sx")) { hideSheet(); return; }
+  if (t.id === "stog") { const id = openSheet; hideSheet(); toggleEngine(id); return; }
+  if (t.id === "modal") { $("#modal").classList.remove("show"); return; }
+  if (t.id === "sw-pause") { const on = !S.risk.paused; control({ paused: on }, on ? "Entry baru dihentikan" : "Entry baru diizinkan lagi").then(ok => { if (ok) { PEND.paused = { on: on, t: Date.now() + 7000 }; S.risk.paused = on; holdSets = 0; render(); } }); return; }
+  const fl = t.closest("[data-flag]");
+  if (fl) {
+    const key = fl.dataset.flag, map = { sess_asia: "asia", sess_london: "london", sess_ny: "ny" };
+    const cur = key === "news_filter" ? S.risk.news_filter : S.sessions[map[key]], on = !cur;
+    const label = key === "news_filter" ? "Hindari news" : "Sesi " + ({ sess_asia: "Asia", sess_london: "London", sess_ny: "New York" })[key];
+    const body = {}; body[key] = on;
+    control(body, label + (on ? " dinyalakan" : " dimatikan")).then(ok => {
+      if (!ok) return;
+      PEND["flag:" + key] = { on: on, t: Date.now() + 7000 };
+      if (key === "news_filter") S.risk.news_filter = on; else S.sessions[map[key]] = on;
+      holdSets = 0; renderSettings();
+    });
+    return;
+  }
+  if (t.id === "save") {
+    const num = id => parseFloat(String($(id).value).replace(",", "."));
+    const a = num("#in-risk"), b = num("#in-loss"), mn = num("#in-slmin"), mx = num("#in-slmax");
+    if (!(a >= 0) || !(b >= 0) || b > 100 || !(mn >= 0) || !(mx >= 0)) { toast("Isi dengan angka yang benar"); return; }
+    if (mn > 0 && mx > 0 && mn > mx) { toast("SL minimal tidak boleh lebih besar dari SL maksimal"); return; }
+    control({ max_open_risk: a, daily_loss_pct: b, sl_min: mn, sl_max: mx }, "Pengaman disimpan").then(ok => {
+      if (ok) { S.risk.max_open_risk = a; S.risk.daily_loss_pct = b; S.risk.sl_min = mn; S.risk.sl_max = mx; holdSets = 0; document.activeElement.blur(); renderSettings(); holdSets = Date.now() + 7000; }
+    });
+    return;
+  }
+  const md = t.closest("[data-mode]");
+  if (md) {
+    const on = md.dataset.mode === "1";
+    if (on === !!S.risk.mode) return;
+    const go = () => control({ mode: on }, on ? "Mode Extreme aktif" : "Mode Normal aktif").then(ok => { if (ok) { S.risk.mode = on ? 1 : 0; holdSets = 0; renderSettings(); holdSets = Date.now() + 7000; } });
+    if (on) confirmBox("Aktifkan mode Extreme?", "Syarat entry semua mesin dilonggarkan: lebih banyak trade dengan sinyal yang lebih lemah. Belum pernah diuji, jadi rugi bisa lebih cepat menumpuk. Posisi yang sudah terbuka tidak berubah.", "Aktifkan Extreme", false, go);
+    else go();
+    return;
+  }
+  const tpm = t.closest("[data-tpm]");
+  if (tpm) { tpDraft = tpRead(); tpDraft.mode = +tpm.dataset.tpm; holdSets = 0; renderSettings(); const b = document.querySelector('[data-tpm="' + tpDraft.mode + '"]'); if (b) b.focus(); return; }
+  if (t.id === "tpsave") {
+    const d = tpRead(), bad = v => !(v >= 0);
+    if (bad(d.tp_usd) || bad(d.trail_start) || bad(d.trail_dist) || bad(d.be_at) || bad(d.be_lock)) { toast("Isi dengan angka yang benar"); return; }
+    if (d.mode === 1 && !(d.tp_usd > 0)) { toast("Target profit harus lebih dari 0"); return; }
+    if (d.mode === 2 && !(d.trail_dist > 0)) { toast("Jarak trailing harus lebih dari 0"); return; }
+    if (d.mode === 3 && !(d.be_at > 0)) { toast("Pemicu harus lebih dari 0"); return; }
+    if (d.be_at > 0 && d.be_lock >= d.be_at) { toast("Profit dikunci harus lebih kecil dari pemicu"); return; }
+    control({ tp_mode: d.mode, tp_usd: d.tp_usd, trail_start: d.trail_start, trail_dist: d.trail_dist, be_at: d.be_at, be_lock: d.be_lock }, "Ambil untung disimpan").then(ok => {
+      if (!ok) return;
+      Object.assign(S.risk, { tp_mode: d.mode, tp_usd: d.tp_usd, trail_start: d.trail_start, trail_dist: d.trail_dist, be_at: d.be_at, be_lock: d.be_lock });
+      tpDraft = null; holdSets = 0; document.activeElement.blur(); renderSettings(); holdSets = Date.now() + 7000;
+    });
+    return;
+  }
+  if (t.id === "closeall") {
+    const n = S ? S.positions.length : 0;
+    if (!n) { toast("Tidak ada posisi terbuka"); return; }
+    confirmBox("Tutup semua posisi?", n + " posisi milik EA akan ditutup di harga pasar. Tindakan ini tidak bisa dibatalkan.", "Tutup " + n + " posisi", true, () => control({ close_all: true }, "Perintah tutup semua dikirim ke EA"));
+  }
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") { hideSheet(); $("#modal").classList.remove("show"); }
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.classList && ev.target.classList.contains("bot")) { ev.preventDefault(); showSheet(ev.target.dataset.id); }
+  if (ev.key === "Enter" && ev.target.classList && ev.target.classList.contains("inp") && ev.target.id !== "pin") { const c = ev.target.closest(".card"), s = c && c.querySelector(".btn.gold"); if (s) s.click(); }
+});
+
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>

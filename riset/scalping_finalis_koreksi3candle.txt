@@ -1,0 +1,36 @@
+=== DATA MetaQuotes (17,5 bulan), satu posisi pada satu waktu ===
+TP 0.5R  semua: N= 1532 (4.3/hari) win=69% net=   564.5 PF=1.18 DD= 111.6 hari untung=60% SL rata2=7.0 tahan=5 mnt
+   latih: N=  768 (4.6/hari) win=69% net=   338.9 PF=1.28 DD=  69.9 hari untung=62% SL rata2=5.7 tahan=5 mnt
+   validasi: N=  393 (4.1/hari) win=69% net=   160.3 PF=1.14 DD=  63.5 hari untung=59% SL rata2=9.5 tahan=5 mnt
+   uji: N=  371 (4.0/hari) win=68% net=    65.4 PF=1.08 DD= 111.6 hari untung=57% SL rata2=7.1 tahan=6 mnt
+TP 1.0R  semua: N= 1494 (4.2/hari) win=53% net=   558.8 PF=1.12 DD= 164.2 hari untung=54% SL rata2=7.0 tahan=12 mnt
+   latih: N=  749 (4.5/hari) win=54% net=   467.1 PF=1.25 DD=  84.0 hari untung=57% SL rata2=5.7 tahan=11 mnt
+   validasi: N=  385 (4.0/hari) win=51% net=    23.7 PF=1.01 DD= 164.2 hari untung=53% SL rata2=9.6 tahan=11 mnt
+   uji: N=  360 (3.9/hari) win=51% net=    68.0 PF=1.06 DD=  72.6 hari untung=51% SL rata2=7.1 tahan=14 mnt
+TP 1.5R  semua: N= 1458 (4.1/hari) win=44% net=   458.7 PF=1.08 DD= 275.6 hari untung=53% SL rata2=7.0 tahan=18 mnt
+   latih: N=  729 (4.3/hari) win=45% net=   410.6 PF=1.19 DD= 109.8 hari untung=55% SL rata2=5.7 tahan=17 mnt
+   validasi: N=  377 (3.9/hari) win=42% net=   -15.8 PF=0.99 DD= 248.6 hari untung=48% SL rata2=9.6 tahan=17 mnt
+   uji: N=  352 (3.8/hari) win=44% net=    63.9 PF=1.05 DD= 115.8 hari untung=55% SL rata2=7.1 tahan=22 mnt
+per bulan (TP 1R): 25-05:1  25-06:-9  25-07:-31  25-08:29  25-09:-14  25-10:212  25-11:-20  25-12:135  26-01:163  26-02:38  26-03:-51  26-04:-5  26-05:-22  26-06:63  26-07:-19  26-08:60  26-09:9  26-10:2  26-11:16
+bulan untung: 11 dari 19 | buy net 518 (809) | sell net 41 (685)
+per sesi: Asia:88/465  London:18/242  NY:453/787
+
+=== KEPEKAAN SETELAN (TP 1R kecuali disebut), net latih / validasi / uji ===
+dasar (3 candle, tren H4, ramai 1.25, SL 1xATR)  N= 1494      467 /      24 /      68
+2 candle                                         N= 2990      389 /      56 /    -196
+4 candle                                         N=  687      244 /     126 /      -6
+tren H1                                          N= 1442      290 /    -107 /      78
+tren D1                                          N= 1554      429 /     126 /     -50
+tanpa filter tren                                N= 3094     -151 /    -331 /     -64
+tanpa filter ramai                               N= 5206      214 /     153 /    -180
+ramai 1.0                                        N= 2616      243 /      96 /      40
+ramai 1.5                                        N=  857      424 /     -91 /     -12
+SL 0.75xATR                                      N= 1529      269 /     116 /      89
+SL 1.5xATR                                       N= 1427      377 /    -258 /     147
+batas waktu 3 jam                                N= 1489      406 /      34 /     101
+batas waktu 20 mnt                               N= 1548      404 /     104 /      -0
+
+=== CEK SILANG VT Markets M1: 2026-08-06 22:49:00 s/d 2026-11-16 22:55:00 | spread rata2 0.27 ===
+TP 0.5R: N=  289 (4.3/hari) win=66% net=   -12.6 PF=0.98 DD= 113.1 hari untung=52% SL rata2=6.7 tahan=6 mnt
+TP 1.0R: N=  285 (4.3/hari) win=53% net=   122.6 PF=1.14 DD=  72.2 hari untung=57% SL rata2=6.8 tahan=12 mnt
+tanpa filter tren (pembanding): N=  575 (8.1/hari) win=50% net=    -0.7 PF=1.00 DD= 194.4 hari untung=42% SL rata2=6.8 tahan=11 mnt
