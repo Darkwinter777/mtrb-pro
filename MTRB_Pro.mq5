@@ -6,7 +6,7 @@
 //|          runner), ratchet SL, squeeze, ekspansi TP, cooldown     |
 //+------------------------------------------------------------------+
 #property copyright "MTRB Pro"
-#property version   "3.06"
+#property version   "3.07"
 #property description "Scalper MTF: bias D1..M1, entry pullback M1, twin order + ratchet, panel + news"
 
 #include <Trade/Trade.mqh>
@@ -363,6 +363,16 @@ input string InpNewsCurrency   = "USD";    // Mata uang news
 input int    InpNewsBeforeMin  = 30;       // Pause sebelum news (menit)
 input int    InpNewsAfterMin   = 30;       // Pause setelah news (menit)
 
+input group "=== Estimasi Buy/Sell volume ==="
+input int    InpFlowMode       = 1;        // 0 = mati, 1 = tampil dan dicatat saja, 2 = filter entry (bisa diubah dari dashboard)
+input int    InpFlowBars       = 20;       // Jumlah candle untuk CVD (delta kumulatif)
+input double InpFlowTrendPct   = 55.0;     // Mesin searah: porsi volume searah entry minimal (%)
+input double InpFlowRevPct     = 60.0;     // Mesin pembalikan: tolak jika dorongan lawan >= % ini
+input int    InpFlowTickMaxMin = 15;       // Hitung per tick untuk timeframe <= N menit (di atasnya pakai posisi close di candle)
+
+input group "=== Pencatat trade (bahan analisa) ==="
+input bool   InpTradeLog       = true;     // Catat kondisi pasar tiap entry dan hasilnya ke CSV (Common\Files)
+
 input group "=== Dashboard ==="
 input bool   InpDashboard      = true;     // Kirim status ke dashboard dan terima perintah darinya
 input int    InpStatusRefreshMin = 5;      // Perbarui status tiap strategi setiap N menit (0 = hanya saat bar baru)
@@ -573,6 +583,15 @@ struct NewsItem
 NewsItem        g_news[];
 datetime        g_newsRefreshed = 0;
 
+// hasil estimasi Buy/Sell volume (dihitung di FlowGet)
+struct FlowRes
+  {
+   bool              ok;
+   double            buyPct, deltaPct, cvdPct, slopePct;
+   int               div, absorb;      // +1 bullish, -1 bearish, 0 tidak ada
+  };
+int             g_flowMode = 1;            // 0 mati, 1 tampil/catat, 2 filter
+
 // konteks saat entry, hanya dicatat di Strategy Tester untuk laporan
 struct EntryCtx
   {
@@ -726,6 +745,7 @@ int OnInit()
    g_enNAO = InpEnableNAO;
    g_enCDL = InpEnableCDL;
    g_enRH = InpEnableRangeHybrid;
+   g_flowMode = (int)MathMax(0, MathMin(2, InpFlowMode));
    g_slMin = InpSLMinPerTrade; g_slMax = InpSLMaxPerTrade;
    ApplyMode(InpExtremeMode);
    g_tpMode = (int)MathMax(0, MathMin(3, InpTpMode));
@@ -735,6 +755,7 @@ int OnInit()
    g_newsOn = InpUseNews;
    g_maxOpenRisk = InpMaxOpenRisk; g_dailyLossPct = InpPortDailyLossPct; g_paused = false;
    DashInit();
+   LogInit();
 
    UpdateDayStats();
    if(!g_tester)
@@ -793,6 +814,7 @@ void OnDeinit(const int reason)
    IndicatorRelease(g_hRhAdx);
    IndicatorRelease(g_hRhRsi);
    IndicatorRelease(g_hRhAtr);
+   LogDeinit();
    ObjectsDeleteAll(0, PFX);
   }
 
@@ -857,6 +879,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans, const MqlTradeRequest 
      {
       UpdateDayStats();
       g_statsDirty = true;
+      LogOnDeal(trans.deal);
      }
   }
 
@@ -1314,6 +1337,7 @@ bool OpenOne(const int dir, const double lot, const double sl, const double tp, 
       return false;
      }
    RememberRisk(trade.ResultOrder(), risk);   // di akun hedging tiket posisi = tiket order pembuka
+   LogEntry(trade.ResultOrder(), (long)trade.RequestMagic(), dir, sl, tp, risk);
    if(g_tester)
      {
       int k = ArraySize(g_ctx);
@@ -1592,6 +1616,19 @@ string OpenStrategy(const long magic, const int dir, const double slDistIn, cons
    string sg = SplitBlock(magic);
    if(sg != "")
       return sg;
+   string rb = RuleBlock(magic);
+   if(rb != "")
+      return rb;
+   if(g_flowMode == 2)
+     {
+      FlowRes fr;
+      if(FlowGet(EngTF(magic), fr))
+        {
+         string fv = FlowVerdict(magic, dir, fr);
+         if(fv != "")
+            return fv;
+        }
+     }
    if(PortfolioDayLocked())
       return "STOP: batas rugi harian portofolio";
 
@@ -2706,6 +2743,9 @@ void DashReadControl()
               }
            }
         }
+      else if(RuleControl(k, v))
+        {
+        }
       else
          EngSet(k, v == "1");
      }
@@ -2790,7 +2830,7 @@ void DashWriteStatus()
    bool   newsBlk = NewsBlocked(why);
 
    string s = "{";
-   s += StringFormat("\"v\":\"3.06\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
+   s += StringFormat("\"v\":\"3.07\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
    s += StringFormat("\"account\":{\"server\":\"%s\",\"login_tail\":\"%s\",\"demo\":%s,\"currency\":\"%s\",\"balance\":%.2f,\"equity\":%.2f,\"free_margin\":%.2f,\"margin_level\":%.1f,\"leverage\":%I64d,\"connected\":%s},",
                      JS(AccountInfoString(ACCOUNT_SERVER)), tail, (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "true" : "false",
                      JS(AccountInfoString(ACCOUNT_CURRENCY)), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
@@ -2803,13 +2843,14 @@ void DashWriteStatus()
    for(int i = 0; i < NTF; i++)
       s += (i > 0 ? "," : "") + StringFormat("{\"n\":\"%s\",\"b\":%d}", g_tfName[i], g_bias[i]);
    s += "]},";
-   s += StringFormat("\"risk\":{\"open_risk\":%.2f,\"max_open_risk\":%.2f,\"day_start_equity\":%.2f,\"day_pl\":%.2f,\"daily_loss_pct\":%.2f,\"locked\":%s,\"paused\":%s,\"news_blocked\":%s,\"news_reason\":\"%s\",\"algo\":%s,\"lot\":%.2f,\"sl_min\":%.2f,\"sl_max\":%.2f,\"mode\":%d,\"tp_mode\":%d,\"tp_usd\":%.2f,\"trail_start\":%.2f,\"trail_dist\":%.2f,\"be_at\":%.2f,\"be_lock\":%.2f,\"news_filter\":%s,\"news_before\":%d,\"news_after\":%d},",
+   s += StringFormat("\"risk\":{\"open_risk\":%.2f,\"max_open_risk\":%.2f,\"day_start_equity\":%.2f,\"day_pl\":%.2f,\"daily_loss_pct\":%.2f,\"locked\":%s,\"paused\":%s,\"news_blocked\":%s,\"news_reason\":\"%s\",\"algo\":%s,\"lot\":%.2f,\"sl_min\":%.2f,\"sl_max\":%.2f,\"mode\":%d,\"tp_mode\":%d,\"tp_usd\":%.2f,\"trail_start\":%.2f,\"trail_dist\":%.2f,\"be_at\":%.2f,\"be_lock\":%.2f,\"flow_mode\":%d,\"news_filter\":%s,\"news_before\":%d,\"news_after\":%d},",
                      OpenRiskNow(), g_maxOpenRisk, g_eqDayStart, (g_eqDayStart > 0 ? AccountInfoDouble(ACCOUNT_EQUITY) - g_eqDayStart : 0.0), g_dailyLossPct,
-                     PortfolioDayLocked() ? "true" : "false", g_paused ? "true" : "false", newsBlk ? "true" : "false", JS(why), algo ? "true" : "false", NormLot(InpLot), g_slMin, g_slMax, (int)g_extreme, g_tpMode, g_tpUsd, g_trStart, g_trDist, g_beAt, g_beLock,
+                     PortfolioDayLocked() ? "true" : "false", g_paused ? "true" : "false", newsBlk ? "true" : "false", JS(why), algo ? "true" : "false", NormLot(InpLot), g_slMin, g_slMax, (int)g_extreme, g_tpMode, g_tpUsd, g_trStart, g_trDist, g_beAt, g_beLock, g_flowMode,
                      g_newsOn ? "true" : "false", InpNewsBeforeMin, InpNewsAfterMin);
    s += StringFormat("\"sessions\":{\"asia\":%s,\"london\":%s,\"ny\":%s,\"now\":%d,\"london_hour\":%d,\"ny_hour\":%d},",
                      g_sessOn[0] ? "true" : "false", g_sessOn[1] ? "true" : "false", g_sessOn[2] ? "true" : "false",
                      SessionNow(), InpSessLondonHour, InpSessNYHour);
+   s += FlowJson();
    // mesin
    s += "\"engines\":[";
    for(int i = 0; i < g_nEng; i++)
@@ -2823,9 +2864,9 @@ void DashWriteStatus()
          if(PositionGetString(POSITION_SYMBOL) == _Symbol && PositionGetInteger(POSITION_MAGIC) == g_eng[i].magic)
             fp += PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
         }
-      s += (i > 0 ? "," : "") + StringFormat("{\"id\":\"%s\",\"name\":\"%s\",\"type\":\"%s\",\"tf\":\"%s\",\"enabled\":%s,\"status\":\"%s\",\"positions\":%d,\"float_pl\":%.2f,\"total_pl\":%.2f,\"trades\":%d,\"wins\":%d,\"today_pl\":%.2f,\"today_trades\":%d}",
+      s += (i > 0 ? "," : "") + StringFormat("{\"id\":\"%s\",\"name\":\"%s\",\"type\":\"%s\",\"tf\":\"%s\",\"enabled\":%s,\"status\":\"%s\",\"positions\":%d,\"float_pl\":%.2f,\"total_pl\":%.2f,\"trades\":%d,\"wins\":%d,\"today_pl\":%.2f,\"today_trades\":%d,\"blk\":\"%s\",\"msp\":%.2f}",
            g_eng[i].id, JS(g_eng[i].name), g_eng[i].type, g_eng[i].tf, EngEnabled(g_eng[i].id) ? "true" : "false", JS(EngStatus(g_eng[i].id)),
-           np, fp, g_es[i].total, g_es[i].trades, g_es[i].wins, g_es[i].today, g_es[i].todayTrades);
+           np, fp, g_es[i].total, g_es[i].trades, g_es[i].wins, g_es[i].today, g_es[i].todayTrades, RuleHours(i), g_mSp[i]);
      }
    s += "],";
    // posisi terbuka
@@ -2868,6 +2909,567 @@ void DashWriteStatus()
    FileClose(h);
   }
 
+//+------------------------------------------------------------------+
+//| Estimasi Buy vs Sell volume                                      |
+//| Emas CFD tidak punya volume asli: tiap tick dihitung buy kalau   |
+//| harga tengah naik, sell kalau turun (tick rule). Timeframe besar |
+//| atau tick kosong: buy = volume x posisi close di dalam candle.   |
+//+------------------------------------------------------------------+
+#define FLOW_SLOTS 12
+struct FlowBuf
+  {
+   ENUM_TIMEFRAMES   tf;
+   datetime          t[];
+   double            b[], s[];
+  };
+FlowBuf         g_fb[FLOW_SLOTS];
+int             g_fbN = 0;
+string          g_blkHr[N_ENG];        // jam WIB yang diblok hasil analisa, format ",11,12,"
+double          g_mSp[N_ENG];          // spread maks per mesin hasil analisa (0 = ikut mesin)
+
+void FlowBar(const ENUM_TIMEFRAMES tf, const int shift, double &buy, double &sell)
+  {
+   buy = 0; sell = 0;
+   datetime t0 = iTime(_Symbol, tf, shift);
+   int ps = PeriodSeconds(tf);
+   if(t0 <= 0)
+      return;
+   if(ps <= InpFlowTickMaxMin * 60)
+     {
+      MqlTick tk[];
+      int n = CopyTicksRange(_Symbol, tk, COPY_TICKS_INFO, (ulong)t0 * 1000, (ulong)(t0 + ps) * 1000 - 1);
+      if(n >= 10)
+        {
+         double prev = 0;
+         int    last = 0;
+         for(int i = 0; i < n; i++)
+           {
+            if(tk[i].bid <= 0 || tk[i].ask <= 0)
+               continue;
+            double p = (tk[i].bid + tk[i].ask) / 2.0;
+            if(prev > 0)
+              {
+               if(p > prev)
+                  last = 1;
+               else if(p < prev)
+                  last = -1;
+               double v = (tk[i].volume_real > 0) ? tk[i].volume_real : 1.0;
+               if(last > 0)
+                  buy += v;
+               else if(last < 0)
+                  sell += v;
+              }
+            prev = p;
+           }
+         if(buy + sell > 0)
+            return;
+        }
+     }
+   double h = iHigh(_Symbol, tf, shift), l = iLow(_Symbol, tf, shift), c = iClose(_Symbol, tf, shift);
+   double v = (double)MathMax(1, iVolume(_Symbol, tf, shift));
+   if(h - l <= 0)
+     {
+      buy = v / 2.0; sell = v / 2.0;
+      return;
+     }
+   buy = v * (c - l) / (h - l);
+   sell = v - buy;
+  }
+
+// hasil volume untuk candle tertutup di timeframe tf; nilai per candle disimpan supaya tiap candle dihitung sekali
+bool FlowGet(const ENUM_TIMEFRAMES tf, FlowRes &r)
+  {
+   ZeroMemory(r);
+   int N = MathMax(6, MathMin(200, InpFlowBars));
+   int k = -1;
+   for(int i = 0; i < g_fbN; i++)
+      if(g_fb[i].tf == tf)
+        {
+         k = i;
+         break;
+        }
+   if(k < 0)
+     {
+      if(g_fbN >= FLOW_SLOTS)
+         return false;
+      k = g_fbN++;
+      g_fb[k].tf = tf;
+      ArrayResize(g_fb[k].t, 0); ArrayResize(g_fb[k].b, 0); ArrayResize(g_fb[k].s, 0);
+     }
+   datetime last = iTime(_Symbol, tf, 1);
+   if(last <= 0 || iTime(_Symbol, tf, N) <= 0)
+      return false;
+   int m = ArraySize(g_fb[k].t);
+   if(m != N || g_fb[k].t[m - 1] != last)
+     {
+      datetime nt[];
+      double   nb[], ns[];
+      ArrayResize(nt, N); ArrayResize(nb, N); ArrayResize(ns, N);
+      for(int j = 0; j < N; j++)
+        {
+         int sh = N - j;                       // j = 0 paling lama, j = N-1 candle tertutup terakhir
+         nt[j] = iTime(_Symbol, tf, sh);
+         int f = -1;
+         for(int q = 0; q < m; q++)
+            if(g_fb[k].t[q] == nt[j])
+              {
+               f = q;
+               break;
+              }
+         if(f >= 0)
+           {
+            nb[j] = g_fb[k].b[f]; ns[j] = g_fb[k].s[f];
+           }
+         else
+            FlowBar(tf, sh, nb[j], ns[j]);
+        }
+      ArrayResize(g_fb[k].t, N); ArrayResize(g_fb[k].b, N); ArrayResize(g_fb[k].s, N);
+      for(int j = 0; j < N; j++)
+        {
+         g_fb[k].t[j] = nt[j]; g_fb[k].b[j] = nb[j]; g_fb[k].s[j] = ns[j];
+        }
+     }
+   double tb = 0, ts = 0, b5 = 0, s5 = 0, run = 0;
+   double cvd[];
+   ArrayResize(cvd, N);
+   for(int j = 0; j < N; j++)
+     {
+      double b = g_fb[k].b[j], s = g_fb[k].s[j];
+      run += b - s; cvd[j] = run; tb += b; ts += s;
+      if(j >= N - 5)
+        {
+         b5 += b; s5 += s;
+        }
+     }
+   double lb = g_fb[k].b[N - 1], ls = g_fb[k].s[N - 1];
+   r.buyPct   = (lb + ls > 0) ? lb / (lb + ls) * 100.0 : 50.0;
+   r.deltaPct = (lb + ls > 0) ? (lb - ls) / (lb + ls) * 100.0 : 0.0;
+   r.cvdPct   = (tb + ts > 0) ? (tb - ts) / (tb + ts) * 100.0 : 0.0;
+   r.slopePct = (b5 + s5 > 0) ? (b5 - s5) / (b5 + s5) * 100.0 : 0.0;
+   // divergence: 3 candle terakhir membuat high/low baru tapi CVD tidak ikut
+   int    hiR = -1, hiP = -1, loR = -1, loP = -1;
+   double hr = 0, hp = 0, lr = DBL_MAX, lp = DBL_MAX, avV = 0, avR = 0;
+   for(int j = 0; j < N; j++)
+     {
+      int    sh = N - j;
+      double h = iHigh(_Symbol, tf, sh), l = iLow(_Symbol, tf, sh);
+      if(j >= N - 3)
+        {
+         if(h > hr) { hr = h; hiR = j; }
+         if(l < lr) { lr = l; loR = j; }
+        }
+      else
+        {
+         if(h > hp) { hp = h; hiP = j; }
+         if(l < lp) { lp = l; loP = j; }
+        }
+      if(j < N - 1)
+        {
+         avV += g_fb[k].b[j] + g_fb[k].s[j];
+         avR += h - l;
+        }
+     }
+   if(hiR >= 0 && hiP >= 0 && hr > hp && cvd[hiR] < cvd[hiP])
+      r.div = -1;
+   else if(loR >= 0 && loP >= 0 && lr < lp && cvd[loR] > cvd[loP])
+      r.div = 1;
+   // absorption: candle terakhir volumenya besar tapi geraknya kecil, agresornya tertahan
+   avV /= (N - 1); avR /= (N - 1);
+   double rng1 = iHigh(_Symbol, tf, 1) - iLow(_Symbol, tf, 1);
+   if(avV > 0 && avR > 0 && lb + ls >= 1.5 * avV && rng1 <= 0.6 * avR)
+      r.absorb = (lb > ls) ? -1 : 1;
+   r.ok = true;
+   return true;
+  }
+
+// timeframe yang dipakai tiap mesin untuk membaca volume
+ENUM_TIMEFRAMES EngTF(const long m)
+  {
+   if(m == InpMagic + 107) return InpDipTF;
+   if(m == InpMagic + 115) return PERIOD_M1;
+   if(m == InpMagic + 108) return InpCdlTF;
+   if(m == InpMagicRange)  return InpRangeTF;
+   if(m == InpMagic + 101) return InpHbTF;
+   if(m == InpMagic + 111) return InpHbTF2;
+   if(m == InpMagic + 112) return InpHbTF3;
+   if(m == InpMagic + 103) return InpTlTF;
+   if(m == InpMagic + 113) return InpTlTF2;
+   if(m == InpMagic + 102) return InpOrbSignalTF;
+   if(m == InpMagic + 106) return InpRsmTF;
+   if(m == InpMagic + 105) return InpMomEntryTF;
+   if(m == InpMagic + 104) return InpSmcTF;
+   return InpSignalTF;
+  }
+
+// mesin pembalikan (entry melawan gerak terakhir): Range Hybrid dan pola candle
+bool EngReversal(const long m) { return (m == InpMagicRange || m == InpMagic + 108); }
+
+// "" = volume mendukung entry, selain itu alasan penolakan
+string FlowVerdict(const long magic, const int dir, const FlowRes &r)
+  {
+   if(!r.ok)
+      return "";
+   double with = (dir == 1) ? r.buyPct : 100.0 - r.buyPct;     // porsi volume searah entry
+   if(EngReversal(magic))
+     {
+      double th = g_extreme ? MathMax(InpFlowRevPct, 65.0) : InpFlowRevPct;
+      // divergence atau absorption searah entry membatalkan penolakan
+      if(100.0 - with >= th && r.div != dir && r.absorb != dir)
+         return StringFormat("Volume: dorongan lawan %.0f%%", 100.0 - with);
+      return "";
+     }
+   double th = g_extreme ? MathMin(InpFlowTrendPct, 52.0) : InpFlowTrendPct;
+   if(with < th)
+      return StringFormat("Volume: %s %.0f%% < %.0f%%", dir == 1 ? "buy" : "sell", with, th);
+   if(dir * r.slopePct <= 0)
+      return "Volume: CVD tidak searah";
+   return "";
+  }
+
+string FlowJson()
+  {
+   FlowRes r;
+   if(g_flowMode == 0 || !FlowGet(PERIOD_M5, r))
+      return "\"flow\":null,";
+   return StringFormat("\"flow\":{\"tf\":\"M5\",\"buy\":%.1f,\"delta\":%.1f,\"cvd\":%.1f,\"slope\":%.1f,\"div\":%d,\"absorb\":%d},",
+                       r.buyPct, r.deltaPct, r.cvdPct, r.slopePct, r.div, r.absorb);
+  }
+
+//+------------------------------------------------------------------+
+//| Aturan dari hasil analisa (diterapkan lewat dashboard)           |
+//+------------------------------------------------------------------+
+int EngById(const string id)
+  {
+   for(int i = 0; i < g_nEng; i++)
+      if(g_eng[i].id == id)
+         return i;
+   return -1;
+  }
+
+string RuleHours(const int e)
+  {
+   string s = g_blkHr[e];
+   if(StringLen(s) >= 2)
+      s = StringSubstr(s, 1, StringLen(s) - 2);
+   return s;
+  }
+
+string RuleBlock(const long magic)
+  {
+   int e = EngByMagic(magic);
+   if(e < 0)
+      return "";
+   if(g_blkHr[e] != "")
+     {
+      MqlDateTime d;
+      TimeToStruct(ToWib(TimeTradeServer()), d);
+      if(StringFind(g_blkHr[e], "," + IntegerToString(d.hour) + ",") >= 0)
+         return StringFormat("Aturan analisa: jam %02d WIB diblok", d.hour);
+     }
+   if(g_mSp[e] > 0)
+     {
+      double sp = SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if(sp > g_mSp[e])
+         return StringFormat("Aturan analisa: spread %.2f > %.2f", sp, g_mSp[e]);
+     }
+   return "";
+  }
+
+bool RuleControl(const string k, const string v)
+  {
+   if(k == "flow_mode")
+     {
+      g_flowMode = (int)MathMax(0, MathMin(2, (int)StringToInteger(v)));
+      return true;
+     }
+   if(StringFind(k, "blk_") == 0)
+     {
+      int e = EngById(StringSubstr(k, 4));
+      if(e >= 0)
+         g_blkHr[e] = (v == "") ? "" : "," + v + ",";
+      return true;
+     }
+   if(StringFind(k, "msp_") == 0)
+     {
+      int e = EngById(StringSubstr(k, 4));
+      if(e >= 0)
+         g_mSp[e] = MathMax(0.0, StringToDouble(v));
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//| Pencatat trade: kondisi pasar saat entry + hasil saat tutup      |
+//| MTRB_Pro_tradelog.csv = bahan analisa (satu baris per posisi)     |
+//| MTRB_Pro_history.csv = seluruh riwayat posisi EA (untuk export)  |
+//+------------------------------------------------------------------+
+#define LOG_FEAT_N 19
+#define LOG_HDR  "close_time_wib,open_time_wib,position,engine,side,lot,open_price,close_price,profit,duration_min,exit_reason,mfe_usd,mae_usd,hour_wib,dow,session,mode,spread,sl_dist,tp_dist,risk_usd,atr_m5,atr_h1,adx_m15,rsi_m5,bias_score,flow_buy_pct,flow_slope,flow_cvd,flow_div,flow_absorb,flow_ok"
+#define HIST_HDR "close_time_wib,open_time_wib,position,engine,side,lot,open_price,close_price,profit,duration_min,exit_reason"
+int             g_hLgAtr5 = INVALID_HANDLE, g_hLgAtrH1 = INVALID_HANDLE;
+ulong           g_lgPid[];
+string          g_lgFeat[];
+bool            g_histDirty = true;
+
+string LogFile(const string base) { return "MTRB_Pro_" + base + (g_tester ? "_tester" : "") + ".csv"; }
+
+void FileBytes(const int h, const string s)
+  {
+   uchar buf[];
+   int len = StringToCharArray(s, buf, 0, WHOLE_ARRAY, CP_UTF8);
+   if(len > 1)
+      FileWriteArray(h, buf, 0, len - 1);
+  }
+
+void AppendLine(const string file, const string header, const string line)
+  {
+   int h = FileOpen(file, FILE_READ | FILE_WRITE | FILE_BIN | FILE_COMMON | FILE_SHARE_READ);
+   if(h == INVALID_HANDLE)
+      return;
+   if(FileSize(h) == 0 && header != "")
+      FileBytes(h, header + "\r\n");
+   FileSeek(h, 0, SEEK_END);
+   FileBytes(h, line + "\r\n");
+   FileClose(h);
+  }
+
+void LogInit()
+  {
+   g_hLgAtr5  = iATR(_Symbol, PERIOD_M5, 14);
+   g_hLgAtrH1 = iATR(_Symbol, PERIOD_H1, 14);
+   ArrayResize(g_lgPid, 0);
+   ArrayResize(g_lgFeat, 0);
+   if(!InpTradeLog)
+      return;
+   if(g_tester)
+     {
+      // backtest: file mulai dari kosong tiap pengujian supaya tidak bercampur dengan pengujian sebelumnya
+      FileDelete(LogFile("entrylog"), FILE_COMMON);
+      FileDelete(LogFile("tradelog"), FILE_COMMON);
+      return;
+     }
+   int h = FileOpen(LogFile("entrylog"), FILE_READ | FILE_TXT | FILE_ANSI | FILE_COMMON | FILE_SHARE_READ | FILE_SHARE_WRITE);
+   if(h == INVALID_HANDLE)
+      return;
+   while(!FileIsEnding(h))
+     {
+      string ln = FileReadString(h);
+      int p = StringFind(ln, ",");
+      if(p <= 0)
+         continue;
+      int k = ArraySize(g_lgPid);
+      ArrayResize(g_lgPid, k + 1, 256);
+      ArrayResize(g_lgFeat, k + 1, 256);
+      g_lgPid[k]  = (ulong)StringToInteger(StringSubstr(ln, 0, p));
+      g_lgFeat[k] = StringSubstr(ln, p + 1);
+     }
+   FileClose(h);
+   int n = ArraySize(g_lgPid);
+   if(n > 400)                                // simpan 400 entry terakhir saja di memori
+     {
+      ArrayRemove(g_lgPid, 0, n - 400);
+      ArrayRemove(g_lgFeat, 0, n - 400);
+     }
+  }
+
+void LogDeinit()
+  {
+   IndicatorRelease(g_hLgAtr5);
+   IndicatorRelease(g_hLgAtrH1);
+  }
+
+string NumS(const double v, const int d) { return (v == EMPTY_VALUE) ? "" : DoubleToString(v, d); }
+
+void LogEntry(const ulong pid, const long magic, const int dir, const double sl, const double tp, const double slDist)
+  {
+   if(!InpTradeLog || pid == 0)
+      return;
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK), bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double px  = trade.ResultPrice();
+   if(px <= 0)
+      px = (dir == 1) ? ask : bid;
+   double vol = trade.ResultVolume(), risk = 0, pr = 0;
+   ENUM_ORDER_TYPE ty = (dir == 1) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+   if(sl > 0 && OrderCalcProfit(ty, _Symbol, vol, px, sl, pr) && pr < 0)
+      risk = -pr;
+   MqlDateTime d;
+   TimeToStruct(ToWib(TimeTradeServer()), d);
+   FlowRes fr;
+   bool    fok = FlowGet(EngTF(magic), fr);
+   string  fv  = fok ? FlowVerdict(magic, dir, fr) : "";
+   string f = StringFormat("%d,%d,%s,%d,%.2f,%.2f,%.2f,%.2f,%s,%s,%s,%s,%.0f,%s,%s,%s,%s,%s,%s",
+                           d.hour, d.day_of_week, SessionName(SessionNow()), (int)g_extreme, ask - bid,
+                           (sl > 0 ? MathAbs(px - sl) : slDist), (tp > 0 ? MathAbs(tp - px) : 0.0), risk,
+                           NumS(Val(g_hLgAtr5, 0, 1), 2), NumS(Val(g_hLgAtrH1, 0, 1), 2), NumS(Val(g_hAdx, 0, 1), 1), NumS(Val(g_hRsi, 0, 1), 1), g_score,
+                           fok ? DoubleToString(fr.buyPct, 1) : "", fok ? DoubleToString(fr.slopePct, 1) : "", fok ? DoubleToString(fr.cvdPct, 1) : "",
+                           fok ? IntegerToString(fr.div) : "", fok ? IntegerToString(fr.absorb) : "", fok ? (fv == "" ? "1" : "0") : "");
+   int k = ArraySize(g_lgPid);
+   ArrayResize(g_lgPid, k + 1, 256);
+   ArrayResize(g_lgFeat, k + 1, 256);
+   g_lgPid[k] = pid; g_lgFeat[k] = f;
+   AppendLine(LogFile("entrylog"), "", StringFormat("%I64u,", pid) + f);
+  }
+
+void LogOnDeal(const ulong deal)
+  {
+   g_histDirty = true;
+   LogClose(deal);
+  }
+
+// satu baris hasil saat posisi tutup penuh; MFE/MAE diperkirakan dari candle M1 selama posisi terbuka
+void LogClose(const ulong deal)
+  {
+   if(!InpTradeLog || deal == 0 || !HistoryDealSelect(deal))
+      return;
+   long en = HistoryDealGetInteger(deal, DEAL_ENTRY);
+   if(en != DEAL_ENTRY_OUT && en != DEAL_ENTRY_OUT_BY)
+      return;
+   if(HistoryDealGetString(deal, DEAL_SYMBOL) != _Symbol || !IsOurMagic(HistoryDealGetInteger(deal, DEAL_MAGIC)))
+      return;
+   long  mg  = HistoryDealGetInteger(deal, DEAL_MAGIC);
+   ulong pid = (ulong)HistoryDealGetInteger(deal, DEAL_POSITION_ID);
+   if(PositionSelectByTicket(pid))
+      return;                                 // masih ada sisa lot: dicatat saat tutup penuh
+   if(!HistorySelectByPosition(pid))
+      return;
+   double   pl = 0, vol = 0, opx = 0, cpx = 0;
+   datetime ot = 0, ct = 0;
+   int      dir = 0;
+   long     rsn = 0;
+   for(int i = 0; i < HistoryDealsTotal(); i++)
+     {
+      ulong t = HistoryDealGetTicket(i);
+      if(t == 0)
+         continue;
+      pl += HistoryDealGetDouble(t, DEAL_PROFIT) + HistoryDealGetDouble(t, DEAL_SWAP) + HistoryDealGetDouble(t, DEAL_COMMISSION);
+      long e = HistoryDealGetInteger(t, DEAL_ENTRY);
+      if(e == DEAL_ENTRY_IN)
+        {
+         opx = HistoryDealGetDouble(t, DEAL_PRICE);
+         ot  = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
+         vol = HistoryDealGetDouble(t, DEAL_VOLUME);
+         dir = (HistoryDealGetInteger(t, DEAL_TYPE) == DEAL_TYPE_BUY) ? 1 : -1;
+        }
+      else
+        {
+         cpx = HistoryDealGetDouble(t, DEAL_PRICE);
+         ct  = (datetime)HistoryDealGetInteger(t, DEAL_TIME);
+         rsn = HistoryDealGetInteger(t, DEAL_REASON);
+        }
+     }
+   if(ot == 0 || dir == 0)
+      return;
+   double hi = MathMax(opx, cpx), lo = MathMin(opx, cpx);
+   MqlRates r[];
+   int n = CopyRates(_Symbol, PERIOD_M1, ot, ct, r);
+   for(int i = 0; i < n; i++)
+     {
+      hi = MathMax(hi, r[i].high);
+      lo = MathMin(lo, r[i].low);
+     }
+   ENUM_ORDER_TYPE ty = (dir == 1) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+   double fav = (dir == 1) ? hi - opx : opx - lo, adv = (dir == 1) ? opx - lo : hi - opx;
+   double mfe = 0, mae = 0, p1 = 0;
+   if(OrderCalcProfit(ty, _Symbol, vol, opx, opx + dir * fav, p1))
+      mfe = MathMax(0.0, p1);
+   if(OrderCalcProfit(ty, _Symbol, vol, opx, opx - dir * adv, p1))
+      mae = MathMax(0.0, -p1);
+   int    e = EngByMagic(mg);
+   string feat = "";
+   for(int i = ArraySize(g_lgPid) - 1; i >= 0; i--)
+      if(g_lgPid[i] == pid)
+        {
+         feat = g_lgFeat[i];
+         break;
+        }
+   if(feat == "")
+      for(int i = 1; i < LOG_FEAT_N; i++)
+         feat += ",";
+   string row = StringFormat("%s,%s,%I64u,%s,%s,%.2f,%s,%s,%.2f,%.1f,%s,%.2f,%.2f,",
+                             TimeToString(ToWib(ct), TIME_DATE | TIME_SECONDS), TimeToString(ToWib(ot), TIME_DATE | TIME_SECONDS), pid,
+                             (e >= 0 ? g_eng[e].id : "?"), dir == 1 ? "BUY" : "SELL", vol, DoubleToString(opx, _Digits), DoubleToString(cpx, _Digits),
+                             pl, (double)(ct - ot) / 60.0, ReasonStr(rsn), mfe, mae) + feat;
+   AppendLine(LogFile("tradelog"), LOG_HDR, row);
+  }
+
+// tulis ulang seluruh riwayat posisi EA (dipanggil dari timer saat ada deal baru)
+void HistoryWrite()
+  {
+   if(g_tester || !HistorySelect(0, TimeCurrent() + 86400))
+      return;
+   int n = HistoryDealsTotal();
+   ulong    pid[];
+   string   eng[];
+   int      dr[];
+   double   vol[], op[], cp[], pl[];
+   datetime ot[], ct[];
+   long     rs[];
+   ArrayResize(pid, n); ArrayResize(eng, n); ArrayResize(dr, n); ArrayResize(vol, n); ArrayResize(op, n);
+   ArrayResize(cp, n); ArrayResize(pl, n); ArrayResize(ot, n); ArrayResize(ct, n); ArrayResize(rs, n);
+   int cnt = 0;
+   for(int i = 0; i < n; i++)
+     {
+      ulong tk = HistoryDealGetTicket(i);
+      if(tk == 0 || HistoryDealGetString(tk, DEAL_SYMBOL) != _Symbol)
+         continue;
+      int e = EngByMagic(HistoryDealGetInteger(tk, DEAL_MAGIC));
+      if(e < 0)
+         continue;
+      ulong p = (ulong)HistoryDealGetInteger(tk, DEAL_POSITION_ID);
+      int   k = -1;
+      for(int q = cnt - 1; q >= 0 && q >= cnt - 400; q--)
+         if(pid[q] == p)
+           {
+            k = q;
+            break;
+           }
+      if(k < 0)
+        {
+         k = cnt++;
+         pid[k] = p; eng[k] = g_eng[e].id; dr[k] = 0; vol[k] = 0; op[k] = 0; cp[k] = 0; pl[k] = 0; ot[k] = 0; ct[k] = 0; rs[k] = 0;
+        }
+      pl[k] += HistoryDealGetDouble(tk, DEAL_PROFIT) + HistoryDealGetDouble(tk, DEAL_SWAP) + HistoryDealGetDouble(tk, DEAL_COMMISSION);
+      long en = HistoryDealGetInteger(tk, DEAL_ENTRY);
+      if(en == DEAL_ENTRY_IN)
+        {
+         op[k]  = HistoryDealGetDouble(tk, DEAL_PRICE);
+         ot[k]  = (datetime)HistoryDealGetInteger(tk, DEAL_TIME);
+         vol[k] = HistoryDealGetDouble(tk, DEAL_VOLUME);
+         dr[k]  = (HistoryDealGetInteger(tk, DEAL_TYPE) == DEAL_TYPE_BUY) ? 1 : -1;
+        }
+      else if(en == DEAL_ENTRY_OUT || en == DEAL_ENTRY_OUT_BY)
+        {
+         cp[k] = HistoryDealGetDouble(tk, DEAL_PRICE);
+         ct[k] = (datetime)HistoryDealGetInteger(tk, DEAL_TIME);
+         rs[k] = HistoryDealGetInteger(tk, DEAL_REASON);
+        }
+     }
+   string s = HIST_HDR + "\r\n";
+   for(int k = 0; k < cnt; k++)
+     {
+      if(ot[k] == 0 || ct[k] == 0 || PositionSelectByTicket(pid[k]))
+         continue;
+      s += StringFormat("%s,%s,%I64u,%s,%s,%.2f,%s,%s,%.2f,%.1f,%s\r\n",
+                        TimeToString(ToWib(ct[k]), TIME_DATE | TIME_SECONDS), TimeToString(ToWib(ot[k]), TIME_DATE | TIME_SECONDS), pid[k],
+                        eng[k], dr[k] == 1 ? "BUY" : "SELL", vol[k], DoubleToString(op[k], _Digits), DoubleToString(cp[k], _Digits),
+                        pl[k], (double)(ct[k] - ot[k]) / 60.0, ReasonStr(rs[k]));
+     }
+   int h = FileOpen("MTRB_Pro_history.csv", FILE_WRITE | FILE_BIN | FILE_COMMON | FILE_SHARE_READ);
+   if(h == INVALID_HANDLE)
+      return;
+   FileBytes(h, s);
+   FileClose(h);
+  }
+
+void HistoryFlush()
+  {
+   if(!g_histDirty)
+      return;
+   g_histDirty = false;
+   HistoryWrite();
+  }
+
 // dipanggil tiap detik dari OnTimer (hanya saat live)
 void DashTick()
   {
@@ -2878,6 +3480,7 @@ void DashTick()
    DashReadControl();
    if(g_statsDirty || TimeCurrent() - g_statsAt >= 60)
       DashStats();
+   HistoryFlush();
    DashWriteStatus();
   }
 
@@ -4780,6 +5383,14 @@ void DrawPanel()
    PLabel("tmv", L + SX(46), cy, TimeToString(ToWib(now), TIME_MINUTES) + " WIB", C_TEXT, 8, true);
    PLabel("tms", R, cy, "server " + TimeToString(now, TIME_MINUTES), C_DIM, 8, false, ANCHOR_RIGHT_UPPER);
    cy += row;
+   FlowRes pfr;
+   if(g_flowMode > 0 && FlowGet(PERIOD_M5, pfr))
+     {
+      PLabel("flh", L, cy, "Volume", C_DIM, 8);
+      PLabel("flv", L + SX(46), cy, StringFormat("Buy %.0f%%  Sell %.0f%%", pfr.buyPct, 100.0 - pfr.buyPct), pfr.buyPct >= 50 ? C_UP : C_DN, 8, true);
+      PLabel("fls", R, cy, "M5, CVD " + (pfr.slopePct > 0 ? "naik" : pfr.slopePct < 0 ? "turun" : "datar") + (g_flowMode == 2 ? ", filter" : ""), C_DIM, 8, false, ANCHOR_RIGHT_UPPER);
+      cy += row;
+     }
 
    // indikator strategi utama hanya ditampilkan kalau strategi itu dinyalakan
    if(g_enMain)

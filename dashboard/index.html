@@ -120,6 +120,23 @@ h3{margin:0;font-size:19px;line-height:1.25}
 .tf{text-align:center;background:var(--card2);border-radius:var(--r-sm);padding:6px 0;font-size:12px;color:var(--dim)}
 .tf b{display:block}
 
+/* analisa */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font-size:12px;font-weight:600;color:var(--dim);text-align:right;padding:10px 0 8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{text-align:right;padding:10px 0 10px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tr:last-child td{border-bottom:0}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:0;white-space:normal}
+.hours{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;align-items:end;height:120px}
+.hours i{display:block;border-radius:3px 3px 0 0}
+.hours i.up{background:var(--up)} .hours i.dn{background:var(--dn)}
+.hlab{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;font-size:12px;color:var(--dim);margin-top:6px;overflow:visible}
+.hlab span{white-space:nowrap}
+.split{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:10px;background:var(--card2)}
+.split i{display:block;height:100%} .split .b{background:var(--up)} .split .s{background:var(--dn)}
+.sel{display:block;height:44px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--text);font:inherit;padding:0 10px;width:100%;margin-top:4px;color-scheme:dark}
+.opts.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.btn[disabled]{opacity:.6;cursor:default}
+
 /* navigasi: bar bawah di HP, rel kiri di layar lebar */
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(13,15,20,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 .tabs .inner{max-width:560px;margin:0 auto;display:flex}
@@ -207,6 +224,14 @@ h3{margin:0;font-size:19px;line-height:1.25}
       <h1>Pengaturan</h1>
       <div id="sets"></div>
     </section>
+
+    <section id="p-ana" hidden>
+      <h1>Analisa</h1>
+      <div class="cols even">
+        <div><div id="ana"></div></div>
+        <div><div id="alive"></div><div id="aexp"></div><div id="aml"></div></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -216,6 +241,7 @@ h3{margin:0;font-size:19px;line-height:1.25}
     <button class="on" data-tab="akun" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7M3 12.5h18"/></svg>Akun</button>
     <button data-tab="robot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4.5M9 13.5h.01M15 13.5h.01M2 13v2M22 13v2"/></svg>Robot</button>
     <button data-tab="atur"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>Pengaturan</button>
+    <button data-tab="ana"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Analisa</button>
   </div>
 </nav>
 
@@ -374,6 +400,8 @@ async function poll() {
       if (PEND[k].t < now) { delete PEND[k]; return; }
       if (k === "paused") S.risk.paused = PEND[k].on;
       else if (k === "flag:news_filter") S.risk.news_filter = PEND[k].on;
+      else if (k === "flow_mode") S.risk.flow_mode = PEND[k].v;
+      else if (k.indexOf("rule:") === 0) { const e = S.engines.find(x => x.id === k.slice(5)); if (e) { e.blk = PEND[k].blk; e.msp = PEND[k].msp; } }
       else if (k.indexOf("flag:sess_") === 0) { if (S.sessions) S.sessions[k.slice(10) === "asia" ? "asia" : k.slice(10) === "london" ? "london" : "ny"] = PEND[k].on; }
       else { const e = S.engines.find(x => x.id === k); if (e) e.enabled = PEND[k].on; }
     });
@@ -480,7 +508,8 @@ function render() {
     const wr = e.trades ? Math.round(e.wins / e.trades * 100) + "%" : "–";
     return '<div class="card bot' + (e.enabled ? "" : " off") + '" data-id="' + esc(e.id) + '" tabindex="0" aria-label="Detail ' + esc(e.name) + '">' +
       '<div class="row"><div class="ico">' + ic(mt.icon) + '</div><div class="grow"><div class="name">' + esc(e.name) + "</div>" +
-      '<div class="tags" style="margin-top:4px"><span class="tag">' + esc(mt.kind) + " · " + esc(e.tf) + "</span>" + (v[1] ? '<span class="tag ' + v[0] + '">' + esc(v[1]) + "</span>" : "") + "</div></div>" +
+      '<div class="tags" style="margin-top:4px"><span class="tag">' + esc(mt.kind) + " · " + esc(e.tf) + "</span>" + (v[1] ? '<span class="tag ' + v[0] + '">' + esc(v[1]) + "</span>" : "") +
+      (e.blk ? '<span class="tag warn">Blok jam ' + esc(e.blk) + "</span>" : "") + (e.msp > 0 ? '<span class="tag warn">Spread ≤ ' + e.msp.toFixed(2) + "</span>" : "") + "</div></div>" +
       sw(e.enabled, "Nyalakan " + e.name, 'data-sw="' + esc(e.id) + '"') + "</div>" +
       '<div class="status">' + esc(e.enabled ? (e.status || "-") : "Dimatikan") + "</div>" +
       '<div class="grid3">' +
@@ -490,6 +519,182 @@ function render() {
 
   renderSettings();
   if (openSheet) fillSheet(openSheet);
+  if (!$("#p-ana").hidden) renderAnaLive();
+}
+
+// ---------------------------------------------------------------- halaman Analisa
+let A = null, aBusy = false, aErr = "", aAt = 0, xFull = true;
+const pct = v => v == null ? "–" : Math.round(v) + "%";
+const f2 = v => v == null ? "–" : Number(v).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sg = v => v == null ? "–" : '<span class="' + cls(v) + '">' + signed(v) + "</span>";
+const table = (hd, rows) => '<div class="card list" style="overflow-x:auto"><table class="tbl"><thead><tr>' + hd.map(x => "<th>" + x + "</th>").join("") +
+  "</tr></thead><tbody>" + rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+const stRow = (name, s) => [name, s.n || 0, pct(s.winrate), f2(s.pf), sg(s.total)];
+
+async function loadAnalysis(force) {
+  if (aBusy) return;
+  if (DEMO) { aErr = "demo"; renderAna(); return; }
+  aBusy = true; renderAna();
+  try {
+    const j = await api(force ? "analyze" : "analysis", force ? { run: 1 } : null);
+    if (j.ok) { A = j.data; aAt = Date.now(); aErr = j.run_log ? "Analisa ulang gagal, yang tampil hasil sebelumnya. " + j.run_log : ""; }
+    else aErr = j.error === "no_data" ? "nodata" : "Analisa gagal (" + j.error + ")" + (j.log ? ": " + j.log : "");
+  } catch (e) { if (e.message !== "pin") aErr = "Server tidak terjangkau"; }
+  aBusy = false; renderAna();
+  if (force && A && !aErr) toast("Analisa selesai");
+}
+
+function hoursChart(rows) {
+  const m = {}; rows.forEach(r => m[r.key] = r);
+  const mx = Math.max(1e-9, ...rows.map(r => Math.abs(r.total)));
+  let b = "", l = "";
+  for (let i = 0; i < 24; i++) {
+    const r = m[i];
+    b += r ? '<i class="' + (r.total >= 0 ? "up" : "dn") + '" style="height:' + Math.max(3, Math.abs(r.total) / mx * 100).toFixed(0) + '%" title="' + p2(i) + ":00 WIB · " + r.n + " trade · " + signed(r.total) + '"></i>' : "<i></i>";
+    l += "<span>" + (i % 3 === 0 ? p2(i) : "") + "</span>";
+  }
+  const sorted = rows.filter(r => r.n >= 3).sort((x, y) => y.total - x.total);
+  const bw = sorted.length >= 2 ? '<div class="grid2 hr">' + kv("Jam terbaik", p2(sorted[0].key) + ":00 · " + signed(sorted[0].total), "up") + kv("Jam terburuk", p2(sorted[sorted.length - 1].key) + ":00 · " + signed(sorted[sorted.length - 1].total), "dn") + "</div>" : "";
+  return '<div class="card"><div class="hours" role="img" aria-label="Profit per jam entry">' + b + '</div><div class="hlab">' + l + "</div>" + bw +
+    '<div class="small muted" style="margin-top:10px">Hijau untung, merah rugi. Tinggi batang = besar total di jam itu.</div></div>';
+}
+
+function renderAna() {
+  if (!$("#ana")) return;
+  let h = '<div class="card"><div class="small muted">' + (A ? "Dibuat " + esc(A.generated) + " · " + A.counts.history + " trade di riwayat · " + A.counts.log_features + " dengan catatan kondisi pasar" : "Belum ada hasil analisa") + "</div>" +
+    '<button class="btn" id="arun" style="margin-top:12px"' + (aBusy ? " disabled" : "") + ">" + (aBusy ? "Menganalisa…" : "Analisa ulang sekarang") + "</button></div>";
+  if (aErr === "demo") h += '<div class="note" style="margin-top:12px">Halaman Analisa butuh data asli dari EA, tidak tersedia di mode contoh.</div>';
+  else if (aErr === "nodata") h += '<div class="note" style="margin-top:12px">Belum ada trade yang tercatat. EA v3.07 mencatat tiap trade yang tertutup; analisa muncul setelah ada trade.</div>';
+  else if (aErr) h += '<div class="note bad" style="margin-top:12px">' + esc(aErr) + "</div>";
+  let ml = "";
+  if (A) (A.notes || []).forEach(n => h += '<div class="note" style="margin-top:12px">' + esc(n) + "</div>");
+  if (A && A.summary && A.summary.n) {
+    const s = A.summary;
+    h += "<h2>Ringkasan " + esc(A.period.from) + " – " + esc(A.period.to) + "</h2>" +
+      '<div class="card"><div class="grid3">' + kv("Trade", s.n) + kv("Menang", pct(s.winrate)) + kv("Profit factor", f2(s.pf)) +
+      kv("Total", signed(s.total), cls(s.total)) + kv("Rata-rata", signed(s.expectancy), cls(s.expectancy)) + kv("Drawdown maks", money(s.max_dd)) + "</div></div>";
+    h += "<h2>Saran</h2>";
+    if (!A.recs.length) h += '<div class="card small muted">Belum ada saran: tidak ditemukan pola rugi yang cukup kuat di data ini.</div>';
+    A.recs.forEach((r, i) => {
+      const u = r.confidence === "uji";
+      h += '<div class="card"><div class="row" style="align-items:flex-start"><b class="grow">' + esc(r.title) + '</b><span class="tag ' + (u ? "ok" : "warn") + '">' + (u ? "Terbukti di data terbaru" : "Petunjuk awal") + "</span></div>" +
+        '<div class="small" style="margin-top:8px;color:var(--soft)">' + esc(r.detail) + '</div><div class="small muted" style="margin-top:4px">' + esc(r.evidence) + "</div>" +
+        (r.apply ? '<button class="btn' + (u ? " gold" : "") + '" data-rec="' + i + '" style="margin-top:14px">Terapkan</button>' : "") + "</div>";
+    });
+    h += '<p class="hint">Saran tidak pernah diterapkan otomatis. "Terbukti" artinya pola dari 70% data lama juga rugi di 30% data terbaru. Tetap bukan jaminan.</p>';
+    h += "<h2>Per mesin</h2>" + table(["Mesin", "Trade", "Menang", "PF", "Total"], A.engines.map(e => stRow(esc(e.key), e)));
+    h += "<h2>Profit per jam entry (WIB)</h2>" + hoursChart(A.hours || []);
+    h += "<h2>Per hari</h2>" + table(["Hari", "Trade", "Menang", "PF", "Total"], (A.dow || []).map(e => stRow(esc(e.key), e)));
+    if (A.sessions && A.sessions.length) h += "<h2>Per sesi</h2>" + table(["Sesi", "Trade", "Menang", "PF", "Total"], A.sessions.map(e => stRow(esc(e.key), e)));
+    h += "<h2>Cara keluar</h2>" + table(["Keluar lewat", "Trade", "Menang", "PF", "Total"], (A.reasons || []).map(e => stRow(esc(({ SL: "Stop loss", TP: "Take profit", EA: "Ditutup EA", OTHER: "Manual / lain", STOPOUT: "Stop out" })[e.key] || e.key), e)));
+
+    // kolom kanan: profit tertinggi, volume, ML
+    const t = A.tp;
+    if (t && t.reach && t.reach.length) {
+      ml += "<h2>Profit tertinggi selama posisi terbuka</h2><div class='card'><div class='small muted'>Persen trade yang sempat mencapai profit ini sebelum ditutup. Median: " + f2(t.mfe_median) + ".</div>" +
+        '<div class="grid3" style="margin-top:10px">' + t.reach.map(x => kv("≥ " + x.usd, pct(x.pct))).join("") + "</div>" +
+        (t.global ? '<div class="hr small">TP tetap terbaik di data ini <b>' + f2(t.global.tp) + "</b>: hasil " + signed(t.global.sim_total) + " dibanding sekarang " + signed(t.global.actual_total) + ".</div>" : "") + "</div>";
+      if (t.engines.length) ml += table(["Mesin", "Median", "TP terbaik", "Hasil TP", "Sekarang"], t.engines.map(e => [esc(e.engine), f2(e.mfe_median), f2(e.tp), sg(e.sim_total), sg(e.actual_total)]));
+    }
+    if (A.flow) {
+      ml += "<h2>Trade menurut Buy/Sell volume</h2>" + table(["Saat entry", "Trade", "Menang", "PF", "Total"], [stRow("Volume mendukung", A.flow.pass), stRow("Tidak mendukung", A.flow.fail)]) +
+        '<p class="hint">Dicatat di semua trade, juga saat filter belum dinyalakan, supaya bisa dibandingkan.</p>';
+    }
+  }
+  const m = A && A.ml;
+  if (m) {
+    ml += "<h2>Machine learning</h2><div class='card'>";
+    if (m.status === "kurang_data") {
+      const p = Math.min(100, (m.n || 0) / m.need * 100);
+      ml += "<b>Mengumpulkan data</b><div class='small muted' style='margin-top:4px'>Model dilatih setelah ada " + m.need + " trade dengan catatan kondisi pasar. Sekarang " + (m.n || 0) + ".</div><div class='bar'><i style='width:" + p.toFixed(0) + "%'></i></div>";
+    } else if (m.status === "no_sklearn") ml += "<div class='small muted'>Python di komputer ini belum punya scikit-learn.</div>";
+    else if (m.status === "satu_kelas") ml += "<div class='small muted'>Semua trade di salah satu periode menang semua atau kalah semua, jadi model belum bisa dilatih.</div>";
+    else {
+      ml += '<div class="grid3">' + kv("Trade", m.n) + kv("Menang", pct(m.base_winrate)) + kv("AUC", f2(m.auc), m.auc >= 0.62 ? "up" : m.auc < 0.55 ? "dn" : "") + "</div>" +
+        '<div class="small" style="margin-top:10px;color:var(--soft)">' + esc(m.verdict) + '</div><div class="small muted" style="margin-top:4px">AUC 0,50 = setara tebakan, 1,00 = sempurna. Diuji di ' + m.n_test + " trade terbaru yang tidak dipakai melatih.</div>";
+      if (m.importance && m.importance.length) {
+        const mx = Math.max(...m.importance.map(x => x.imp));
+        ml += '<div class="hr small muted">Kondisi yang paling memengaruhi menang/kalah</div>' + m.importance.map(x => '<div class="row small" style="margin-top:8px"><span class="grow">' + esc(x.feature) + '</span></div><div class="bar" style="margin-top:4px"><i style="width:' + (x.imp / mx * 100).toFixed(0) + '%"></i></div>').join("");
+      }
+      if (m.rules && m.rules.length) {
+        ml += '<div class="hr small muted">Kondisi yang cenderung rugi</div>' + m.rules.map(r => '<div style="margin-top:10px"><div class="row" style="align-items:flex-start"><span class="grow small" style="color:var(--soft)">' + esc(r.text) + '</span><span class="tag ' + (r.proven ? "ok" : "warn") + '">' + (r.proven ? "Terbukti" : "Belum terbukti") + "</span></div>" +
+          '<div class="small muted">' + r.n_train + " trade lama rata-rata " + signed(r.avg_train) + (r.n_test ? " · " + r.n_test + " trade baru rata-rata " + signed(r.avg_test) : "") + "</div></div>").join("");
+      }
+    }
+    ml += "</div>";
+  }
+  $("#ana").innerHTML = h;
+  $("#aml").innerHTML = ml;
+  renderAnaLive();
+}
+
+function renderAnaLive() {
+  if (!S || !$("#alive")) return;
+  const f = S.flow, fm = S.risk.flow_mode == null ? -1 : S.risk.flow_mode;
+  let h = "<h2>Buy vs Sell volume</h2><div class='card'>";
+  if (f) {
+    h += '<div class="row"><b class="grow">Candle M5 terakhir</b><span class="small muted">CVD ' + (f.slope > 0 ? "naik" : f.slope < 0 ? "turun" : "datar") + "</span></div>" +
+      '<div class="split"><i class="b" style="width:' + f.buy.toFixed(0) + '%"></i><i class="s" style="width:' + (100 - f.buy).toFixed(0) + '%"></i></div>' +
+      '<div class="row small" style="margin-top:6px"><span class="grow up">Buy ' + Math.round(f.buy) + '%</span><span class="dn">Sell ' + Math.round(100 - f.buy) + "%</span></div>" +
+      (f.div || f.absorb ? '<div class="tags">' + (f.div ? '<span class="tag ' + (f.div > 0 ? "ok" : "bad") + '">Divergence ' + (f.div > 0 ? "naik" : "turun") + "</span>" : "") + (f.absorb ? '<span class="tag ' + (f.absorb > 0 ? "ok" : "bad") + '">Absorption ' + (f.absorb > 0 ? "beli" : "jual") + "</span>" : "") + "</div>" : "");
+  } else h += '<div class="small muted">' + (fm === 0 ? "Estimasi volume dimatikan." : "Menunggu data volume dari EA v3.07.") + "</div>";
+  if (fm >= 0) {
+    h += '<div class="opts three" role="radiogroup" aria-label="Mode volume">' + ["Mati", "Tampil saja", "Filter entry"].map((n, i) => '<button class="opt' + (fm === i ? " on" : "") + '" role="radio" aria-checked="' + (fm === i) + '" data-flow="' + i + '">' + n + "</button>").join("") + "</div>" +
+      '<p class="hint" style="margin:8px 0 0">' + ["Tidak dihitung dan tidak dicatat.", "Dihitung dan dicatat di tiap trade, tidak memblokir entry.", "Entry ditolak kalau volume tidak mendukung arah entry (mesin searah) atau dorongan lawan terlalu kuat (Range Hybrid, pola candle)."][fm] + "</p>";
+  }
+  h += "</div>";
+  const act = S.engines.filter(e => e.blk || e.msp > 0);
+  if (act.length) h += "<h2>Aturan analisa yang aktif</h2><div class='card list'>" + act.map(e => '<div class="pos mid"><div class="grow"><b>' + esc(e.name) + '</b><div class="small muted">' +
+    [e.blk ? "Tidak entry jam " + esc(e.blk) + " WIB" : "", e.msp > 0 ? "Spread maks " + e.msp.toFixed(2) : ""].filter(Boolean).join(" · ") + '</div></div><button class="btn" style="width:auto" data-unrule="' + esc(e.id) + '">Hapus</button></div>').join("") + "</div>";
+  $("#alive").innerHTML = h;
+  if (!$("#aexp").innerHTML) {
+    $("#aexp").innerHTML = "<h2>Export riwayat trade</h2><div class='card'>" +
+      '<div class="grid2"><label class="small muted">Dari tanggal<input class="sel" type="date" id="xf"></label><label class="small muted">Sampai tanggal<input class="sel" type="date" id="xt"></label></div>' +
+      '<label class="small muted" style="display:block;margin-top:12px">Mesin<select class="sel" id="xe"><option value="">Semua mesin</option>' + S.engines.map(e => '<option value="' + esc(e.id) + '">' + esc(e.name) + "</option>").join("") + "</select></label>" +
+      '<label class="small muted" style="display:block;margin-top:12px">Format<select class="sel" id="xm"><option value="id">Excel Indonesia (pemisah titik koma, desimal koma)</option><option value="std">CSV standar (pemisah koma, desimal titik)</option></select></label>' +
+      '<div class="row" style="margin-top:12px"><div class="grow"><b>Sertakan kondisi pasar</b><div class="small muted">Spread, ATR, ADX, RSI, volume, dan profit tertinggi saat posisi terbuka.</div></div>' + sw(xFull, "Sertakan kondisi pasar", 'id="xfull"') + "</div>" +
+      '<button class="btn gold" id="xgo" style="margin-top:14px">Download CSV</button></div>';
+  }
+}
+
+function applyLocal(b) {
+  const t = Date.now() + 7000;
+  Object.keys(b).forEach(k => {
+    if (k === "engine") { PEND[b.engine] = { on: b.on, t: t }; const e = S.engines.find(x => x.id === b.engine); if (e) e.enabled = b.on; }
+    else if (/^(blk|msp)_/.test(k)) {
+      const e = S.engines.find(x => x.id === k.slice(4)); if (!e) return;
+      if (k[0] === "b") e.blk = String(b[k]); else e.msp = +b[k];
+      PEND["rule:" + e.id] = { blk: e.blk, msp: e.msp, t: t };
+    }
+    else if (k === "flow_mode") { S.risk.flow_mode = b[k]; PEND.flow_mode = { v: b[k], t: t }; }
+    else if (k in S.risk) { S.risk[k] = b[k]; holdSets = 0; }
+  });
+  render();
+  holdSets = Date.now() + 7000;
+}
+
+async function doExport() {
+  if (DEMO) { toast("Mode contoh: export tidak tersedia"); return; }
+  const q = new URLSearchParams({ a: "export", fmt: $("#xm").value });
+  if ($("#xe").value) q.set("engine", $("#xe").value);
+  if ($("#xf").value) q.set("from", $("#xf").value);
+  if ($("#xt").value) q.set("to", $("#xt").value);
+  if (!xFull) q.set("basic", "1");
+  try {
+    const r = await fetch("api.php?" + q.toString(), { headers: { "X-Pin": pin }, cache: "no-store" });
+    if (r.status === 401) { askPin(); return; }
+    if ((r.headers.get("Content-Type") || "").indexOf("text/csv") < 0) {
+      const j = await r.json().catch(() => ({}));
+      toast(j.error === "no_data" ? "Belum ada riwayat trade dari EA" : "Export gagal");
+      return;
+    }
+    const n = r.headers.get("X-Rows"), blob = await r.blob(), mm = (r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = mm ? mm[1] : "mtrb_riwayat.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast((n || 0) + " trade diexport");
+  } catch (e) { toast("Export gagal"); }
 }
 
 // kartu sesi pasar dan news: saklar per sesi (waktu server broker)
@@ -629,7 +834,34 @@ document.addEventListener("click", ev => {
   const tab = t.closest("[data-tab]");
   if (tab) {
     document.querySelectorAll("[data-tab]").forEach(b => { b.classList.toggle("on", b === tab); if (b === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
-    ["akun", "robot", "atur"].forEach(n => $("#p-" + n).hidden = n !== tab.dataset.tab); window.scrollTo(0, 0); return;
+    ["akun", "robot", "atur", "ana"].forEach(n => $("#p-" + n).hidden = n !== tab.dataset.tab); window.scrollTo(0, 0);
+    if (tab.dataset.tab === "ana") { renderAna(); if (!A || Date.now() - aAt > 60000) loadAnalysis(false); }
+    return;
+  }
+  if (t.id === "arun") { loadAnalysis(true); return; }
+  if (t.id === "xgo") { doExport(); return; }
+  if (t.id === "xfull") { xFull = !xFull; t.classList.toggle("on", xFull); t.setAttribute("aria-checked", xFull); return; }
+  const rb = t.closest("[data-rec]");
+  if (rb && A) {
+    const r = A.recs[+rb.dataset.rec], body = Object.assign({}, r.apply);
+    Object.keys(body).forEach(k => {                    // jam yang sudah diblok sebelumnya tetap diblok
+      if (k.indexOf("blk_") !== 0 || !S) return;
+      const e = S.engines.find(x => x.id === k.slice(4));
+      if (e && e.blk) body[k] = Array.from(new Set((e.blk + "," + body[k]).split(",").filter(Boolean).map(Number))).sort((x, y) => x - y).join(",");
+    });
+    confirmBox("Terapkan saran?", r.title + ". " + (r.confidence === "uji" ? "" : "Saran ini baru petunjuk awal dan belum terbukti di data terbaru. ") + "Bisa dibatalkan kapan saja dari halaman Analisa atau Pengaturan.", "Terapkan", false,
+      () => control(body, "Saran diterapkan").then(ok => { if (ok) applyLocal(body); }));
+    return;
+  }
+  const ur = t.closest("[data-unrule]");
+  if (ur) { const id = ur.dataset.unrule, body = {}; body["blk_" + id] = ""; body["msp_" + id] = 0; control(body, "Aturan dihapus").then(ok => { if (ok) applyLocal(body); }); return; }
+  const fb = t.closest("[data-flow]");
+  if (fb) {
+    const v = +fb.dataset.flow; if (v === S.risk.flow_mode) return;
+    const go = () => control({ flow_mode: v }, ["Estimasi volume dimatikan", "Volume: tampil saja", "Filter volume aktif"][v]).then(ok => { if (ok) applyLocal({ flow_mode: v }); });
+    if (v === 2) confirmBox("Nyalakan filter volume?", "Entry yang volumenya tidak mendukung akan ditolak, jadi jumlah trade berkurang. Filter ini belum diuji; cek dulu tabel \"Trade menurut Buy/Sell volume\" di halaman ini.", "Nyalakan filter", false, go);
+    else go();
+    return;
   }
   const pl = t.closest("[data-pl]");
   if (pl) { plTab = pl.dataset.pl; document.querySelectorAll("[data-pl]").forEach(b => { b.classList.toggle("on", b === pl); b.setAttribute("aria-selected", b === pl); }); if (S) render(); return; }

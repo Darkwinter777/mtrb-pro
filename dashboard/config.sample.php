@@ -8,4 +8,7 @@ return [
     // PIN untuk akses dari perangkat lain (HP di jaringan yang sama, atau internet).
     // Kosong = dashboard hanya bisa dibuka dari komputer ini sendiri (localhost).
     'pin' => '',
+
+    // Python untuk halaman Analisa (butuh pandas dan scikit-learn). Isi path lengkap kalau "python" tidak dikenali server web.
+    'python' => 'python',
 ];
