@@ -269,6 +269,13 @@ const META = {
     "Entry saat candle M5 menutup di luar range, maksimal 1 trade per hari.",
     "SL di tengah range, TP 2 kali jarak SL.",
     "Posisi ditutup paling lambat 6 jam setelah sesi buka." ] },
+  nao: { icon: "momentum", kind: "Scalping 10 detik", rules: [
+    "Arah: EMA 5 / 20 / 40 berurutan dan PSAR searah, di M1 dan di M5.",
+    "Entry saat PSAR pada bar 10 detik baru berbalik ke arah itu, bertahan 1 bar, dan EMA 10 detik ikut searah.",
+    "Keluar saat PSAR 10 detik berbalik melawan posisi, atau muncul sinyal berlawanan.",
+    "SL pengaman 2,00 dari harga entry, tanpa TP.",
+    "Entry hanya jam 09–21 server dan spread maksimal 0,30. Maksimal 1 posisi.",
+    "Butuh sekitar 9 menit setelah EA dimuat untuk mengumpulkan bar 10 detik." ] },
   candle: { icon: "candle", kind: "Pola candle", rules: [
     "Sell saat muncul Dark Cloud Cover atau Hanging Man dan RSI 37 di atas 60.",
     "Buy saat muncul Piercing Line atau Hammer dan RSI 37 di bawah 40.",
@@ -312,6 +319,7 @@ const VERDICT = {
   TL1: ["ok", "Lolos uji", "Positif di data 2016–2021 dan 2022–2026."],
   TL2: ["ok", "Lolos uji", "Positif di kedua paruh data 2024–2026. Belum diuji di tahun-tahun tenang."],
   ORB: ["warn", "Bukti lemah", "Untung tipis dan tidak merata; impas di paruh pertama data 2024–2026."],
+  NAO: ["na", "Belum diuji", "Porting strategi TRILLEX 10S BASIC karya Nadir Ali Khan (lisensi MIT). Belum pernah di-backtest di sini. Bar 10 detik tidak bisa diuji dengan data M1 yang ada, dan keluar-masuknya sangat cepat sehingga biaya spread besar."],
   CDL: ["na", "Belum diuji", "Diambil dari dua robot contoh bawaan MetaTrader (pola candle + RSI). Belum pernah di-backtest di emas. Pola Dark Cloud dan Piercing Line butuh gap harga antar-candle, yang jarang ada di emas M5."],
   DIP: ["warn", "Bukti lemah", "Kandidat terbaik dari 23.168 kombinasi scalping: untung tipis di tiga periode (profit factor 1,25 → 1,01 → 1,06), sekitar 4 trade per hari. Belum diuji di tester MetaTrader."],
   RH: ["na", "Belum diuji", "Belum pernah di-backtest. Batas lebar range sekarang mengikuti ATR, dan tiap tepi harus sudah disentuh 2 kali: di data M5 sesi Asia sekitar 2,9% candle yang lolos, sebelum syarat RSI dan pola candle. Lot dihitung dari % risiko (maksimal 0,10), jadi bisa lebih besar dari 0,01."],

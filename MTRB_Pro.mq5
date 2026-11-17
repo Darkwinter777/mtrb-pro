@@ -6,7 +6,7 @@
 //|          runner), ratchet SL, squeeze, ekspansi TP, cooldown     |
 //+------------------------------------------------------------------+
 #property copyright "MTRB Pro"
-#property version   "3.04"
+#property version   "3.05"
 #property description "Scalper MTF: bias D1..M1, entry pullback M1, twin order + ratchet, panel + news"
 
 #include <Trade/Trade.mqh>
@@ -53,6 +53,23 @@ input double InpCdlTP          = 2.0;      // TP (USD harga)
 input int    InpCdlMaxBars     = 10;       // Tutup posisi setelah N candle (0 = off)
 input bool   InpCdlExitRsi     = true;     // Keluar saat RSI memotong 30 / 70
 input double InpCdlMaxSpread   = 0.60;     // Spread maks (USD harga)
+
+input group "=== Strategi: NadirAliOfficial (3 EMA + PSAR, bar 10 detik) ==="
+input bool   InpEnableNAO      = true;     // Strategi NadirAliOfficial
+input int    InpNaoFastEma     = 5;        // EMA cepat
+input int    InpNaoMidEma      = 20;       // EMA tengah
+input int    InpNaoSlowEma     = 40;       // EMA lambat
+input double InpNaoSarStep     = 0.02;     // PSAR step
+input double InpNaoSarMax      = 0.2;      // PSAR maksimum
+input bool   InpNaoRequireM5   = true;     // M5 harus searah M1
+input int    InpNaoConfirmBars = 1;        // PSAR harus bertahan N bar 10 detik setelah berbalik
+input int    InpNaoExitMode    = 0;        // Keluar: 0 = PSAR 10 detik berbalik, 1 = tutup melewati EMA cepat
+input double InpNaoSL          = 2.0;      // SL pengaman (USD harga; 200 point di emas)
+input double InpNaoTP          = 0.0;      // TP (USD harga, 0 = tanpa TP)
+input double InpNaoMaxSpread   = 0.30;     // Spread maks (USD harga; 30 point)
+input int    InpNaoHourFrom    = 9;        // Entry mulai jam (waktu server)
+input int    InpNaoHourTo      = 21;       // Entry sampai sebelum jam (waktu server)
+input int    InpNaoMaxBars     = 800;      // Jumlah bar 10 detik yang disimpan
 
 input group "=== Strategi: scalping koreksi searah tren ==="
 input ENUM_TIMEFRAMES InpDipTF = PERIOD_M5; // Timeframe
@@ -388,6 +405,12 @@ bool            g_enDIP = false;
 int             g_hDipEma = INVALID_HANDLE, g_hDipAtr = INVALID_HANDLE;
 datetime        g_dipBar = 0;
 string          g_dipStatus = "-";
+bool            g_enNAO = false;
+int             g_hNaoE[6], g_hNaoSar[2];           // EMA cepat/tengah/lambat di M1 lalu M5; PSAR M1, M5
+double          g_naoH[], g_naoL[], g_naoC[];       // bar 10 detik yang sudah tutup (harga tengah bid/ask)
+datetime        g_naoT = 0;                         // awal bar 10 detik yang sedang berjalan
+double          g_naoCurH = 0, g_naoCurL = 0, g_naoCurC = 0;
+string          g_naoStatus = "-";
 bool            g_enCDL = false;
 int             g_hCdlRsi = INVALID_HANDLE, g_hCdlMa = INVALID_HANDLE;
 datetime        g_cdlBar = 0;
@@ -643,6 +666,16 @@ int OnInit()
       return INIT_FAILED;
    g_hDipEma = iMA(_Symbol, InpDipTF, InpDipTrendEma, 0, MODE_EMA, PRICE_CLOSE);
    g_hDipAtr = iATR(_Symbol, InpDipTF, 14);
+   for(int k = 0; k < 2; k++)
+     {
+      ENUM_TIMEFRAMES ntf = (k == 0) ? PERIOD_M1 : PERIOD_M5;
+      g_hNaoE[k * 3 + 0] = iMA(_Symbol, ntf, InpNaoFastEma, 0, MODE_EMA, PRICE_CLOSE);
+      g_hNaoE[k * 3 + 1] = iMA(_Symbol, ntf, InpNaoMidEma, 0, MODE_EMA, PRICE_CLOSE);
+      g_hNaoE[k * 3 + 2] = iMA(_Symbol, ntf, InpNaoSlowEma, 0, MODE_EMA, PRICE_CLOSE);
+      g_hNaoSar[k] = iSAR(_Symbol, ntf, InpNaoSarStep, InpNaoSarMax);
+      if(g_hNaoE[k * 3] == INVALID_HANDLE || g_hNaoE[k * 3 + 1] == INVALID_HANDLE || g_hNaoE[k * 3 + 2] == INVALID_HANDLE || g_hNaoSar[k] == INVALID_HANDLE)
+         return INIT_FAILED;
+     }
    g_hCdlRsi = iRSI(_Symbol, InpCdlTF, InpCdlRsiPeriod, PRICE_CLOSE);
    g_hCdlMa  = iMA(_Symbol, InpCdlTF, InpCdlMaPeriod, 0, MODE_SMA, PRICE_CLOSE);
    if(g_hCdlRsi == INVALID_HANDLE || g_hCdlMa == INVALID_HANDLE)
@@ -690,6 +723,7 @@ int OnInit()
    g_enMain = InpEnableMain; g_enORB = InpEnableORB; g_enSMC = InpEnableSMC; g_enMOM = InpEnableMOM;
    g_enRSM = InpEnableRSM;
    g_enDIP = InpEnableDIP;
+   g_enNAO = InpEnableNAO;
    g_enCDL = InpEnableCDL;
    g_enRH = InpEnableRangeHybrid;
    g_slMin = InpSLMinPerTrade; g_slMax = InpSLMaxPerTrade;
@@ -750,6 +784,10 @@ void OnDeinit(const int reason)
    IndicatorRelease(g_hRsmMa);
    IndicatorRelease(g_hDipEma);
    IndicatorRelease(g_hDipAtr);
+   for(int k = 0; k < 6; k++)
+      IndicatorRelease(g_hNaoE[k]);
+   IndicatorRelease(g_hNaoSar[0]);
+   IndicatorRelease(g_hNaoSar[1]);
    IndicatorRelease(g_hCdlRsi);
    IndicatorRelease(g_hCdlMa);
    IndicatorRelease(g_hRhAdx);
@@ -790,6 +828,7 @@ void OnTick()
    StrategyMOM();
    StrategyRSM();
    StrategyDIP();
+   StrategyNAO();
    StrategyCDL();
    StrategyRH();
    RefreshStatuses();
@@ -1343,7 +1382,7 @@ bool IsHBMagic(const long m) { return (m == InpMagic + 101 || m == InpMagic + 11
 bool IsTLMagic(const long m) { return (m == InpMagic + 103 || m == InpMagic + 113); }
 bool IsOurMagic(const long m)
   {
-   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagic + 108 || m == InpMagicRange);
+   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagic + 108 || m == InpMagic + 115 || m == InpMagicRange);
   }
 
 // jalankan tiap salinan strategi: muat keadaannya ke variabel aktif, jalankan, simpan kembali
@@ -2464,7 +2503,7 @@ void StrategyMOM()
 //+------------------------------------------------------------------+
 #define DASH_STATUS  "MTRB_Pro_status.json"
 #define DASH_CONTROL "MTRB_Pro_control.txt"
-#define N_ENG 13
+#define N_ENG 14
 
 struct EngInfo
   {
@@ -2509,6 +2548,7 @@ void DashInit()
   {
    g_nEng = 0;
    DashAdd("DIP", "Scalping koreksi " + TfName(InpDipTF), "dip", TfName(InpDipTF), InpMagic + 107);
+   DashAdd("NAO", "NadirAliOfficial", "nao", "10 detik", InpMagic + 115);
    DashAdd("CDL", "Pola candle + RSI " + TfName(InpCdlTF), "candle", TfName(InpCdlTF), InpMagic + 108);
    DashAdd("RH", "Range Hybrid " + TfName(InpRangeTF), "range", TfName(InpRangeTF), InpMagicRange);
    DashAdd("HB1", "Breakout " + TfName(InpHbTF), "breakout", TfName(InpHbTF), InpMagic + 101);
@@ -2534,6 +2574,7 @@ bool EngEnabled(const string id)
    if(id == "MOM") return g_enMOM;
    if(id == "RSM") return g_enRSM;
    if(id == "DIP") return g_enDIP;
+   if(id == "NAO") return g_enNAO;
    if(id == "CDL") return g_enCDL;
    if(id == "RH") return g_enRH;
    if(id == "SMC") return g_enSMC;
@@ -2552,6 +2593,7 @@ string EngStatus(const string id)
    if(id == "MOM") return g_momStatus;
    if(id == "RSM") return g_rsmStatus;
    if(id == "DIP") return g_dipStatus;
+   if(id == "NAO") return g_naoStatus;
    if(id == "CDL") return g_cdlStatus;
    if(id == "RH") return g_rhStatus;
    if(id == "SMC") return g_smcStatus;
@@ -2569,6 +2611,7 @@ void EngSet(const string id, const bool on)
    else if(id == "MOM") g_enMOM = on;
    else if(id == "RSM") g_enRSM = on;
    else if(id == "DIP") g_enDIP = on;
+   else if(id == "NAO") g_enNAO = on;
    else if(id == "CDL") g_enCDL = on;
    else if(id == "RH") g_enRH = on;
    else if(id == "SMC") g_enSMC = on;
@@ -2747,7 +2790,7 @@ void DashWriteStatus()
    bool   newsBlk = NewsBlocked(why);
 
    string s = "{";
-   s += StringFormat("\"v\":\"3.04\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
+   s += StringFormat("\"v\":\"3.05\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
    s += StringFormat("\"account\":{\"server\":\"%s\",\"login_tail\":\"%s\",\"demo\":%s,\"currency\":\"%s\",\"balance\":%.2f,\"equity\":%.2f,\"free_margin\":%.2f,\"margin_level\":%.1f,\"leverage\":%I64d,\"connected\":%s},",
                      JS(AccountInfoString(ACCOUNT_SERVER)), tail, (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "true" : "false",
                      JS(AccountInfoString(ACCOUNT_CURRENCY)), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
@@ -3059,6 +3102,215 @@ void StrategyCDL()
      }
    double slDist = MathMax(InpCdlSL, MinStopDist());
    g_cdlStatus = OpenStrategy(mg, d, slDist, (InpCdlTP > 0 ? InpCdlTP / slDist : 0), "MTRB CDL");
+  }
+
+//+------------------------------------------------------------------+
+//| Strategi NadirAliOfficial                                        |
+//| Porting "TRILLEX 10S BASIC" (mode Insane) karya Nadir Ali Khan,  |
+//| lisensi MIT: github.com/NadirAliOfficial/trillex-10s-ea          |
+//| 3 EMA + PSAR searah di M1 dan M5, lalu PSAR pada bar 10 detik    |
+//| baru berbalik ke arah itu. Keluar saat PSAR 10 detik berbalik.   |
+//+------------------------------------------------------------------+
+void NaoEma(const double &p[], const int period, double &e[])
+  {
+   int n = ArraySize(p);
+   ArrayResize(e, n);
+   if(n <= 0 || period <= 0)
+      return;
+   double a = 2.0 / (period + 1.0);
+   e[0] = p[0];
+   for(int i = 1; i < n; i++)
+      e[i] = a * p[i] + (1.0 - a) * e[i - 1];
+  }
+
+void NaoSar(const double &h[], const double &l[], const double &c[], const double step, const double maxAF, double &sar[])
+  {
+   int n = ArraySize(c);
+   ArrayResize(sar, n);
+   if(n <= 0)
+      return;
+   if(n == 1)
+     {
+      sar[0] = l[0];
+      return;
+     }
+   bool   up = (c[1] >= c[0]);
+   double af = step, ep = up ? MathMax(h[0], h[1]) : MathMin(l[0], l[1]);
+   sar[0] = up ? l[0] : h[0];
+   sar[1] = sar[0];
+   for(int i = 2; i < n; i++)
+     {
+      sar[i] = sar[i - 1] + af * (ep - sar[i - 1]);
+      if(up)
+        {
+         sar[i] = MathMin(sar[i], MathMin(l[i - 1], l[i - 2]));
+         if(l[i] < sar[i])
+           {
+            up = false; sar[i] = ep; ep = l[i]; af = step;
+           }
+         else if(h[i] > ep)
+           {
+            ep = h[i]; af = MathMin(af + step, maxAF);
+           }
+        }
+      else
+        {
+         sar[i] = MathMax(sar[i], MathMax(h[i - 1], h[i - 2]));
+         if(h[i] > sar[i])
+           {
+            up = true; sar[i] = ep; ep = h[i]; af = step;
+           }
+         else if(l[i] < ep)
+           {
+            ep = l[i]; af = MathMin(af + step, maxAF);
+           }
+        }
+     }
+  }
+
+// arah tren satu timeframe: k = 0 (M1) atau 1 (M5). 1 naik, -1 turun, 0 tidak jelas
+int NaoTfTrend(const int k)
+  {
+   ENUM_TIMEFRAMES tf = (k == 0) ? PERIOD_M1 : PERIOD_M5;
+   double ef = Val(g_hNaoE[k * 3], 0, 1), em = Val(g_hNaoE[k * 3 + 1], 0, 1), es = Val(g_hNaoE[k * 3 + 2], 0, 1), sar = Val(g_hNaoSar[k], 0, 1);
+   double c = iClose(_Symbol, tf, 1);
+   if(ef == EMPTY_VALUE || em == EMPTY_VALUE || es == EMPTY_VALUE || sar == EMPTY_VALUE || c <= 0)
+      return 0;
+   if(ef > em && em > es && sar < c)
+      return 1;
+   if(ef < em && em < es && sar > c)
+      return -1;
+   return 0;
+  }
+
+void StrategyNAO()
+  {
+   // bar 10 detik dari harga tengah selalu dibangun, supaya mesin siap saat dinyalakan
+   MqlTick tk;
+   if(!SymbolInfoTick(_Symbol, tk))
+      return;
+   double   mid = (tk.bid + tk.ask) * 0.5;
+   datetime bucket = (datetime)(tk.time - (tk.time % 10));
+   bool     closed = false;
+   if(g_naoT == 0)
+     {
+      g_naoT = bucket; g_naoCurH = mid; g_naoCurL = mid; g_naoCurC = mid;
+     }
+   else if(bucket == g_naoT)
+     {
+      g_naoCurH = MathMax(g_naoCurH, mid); g_naoCurL = MathMin(g_naoCurL, mid); g_naoCurC = mid;
+     }
+   else if(bucket > g_naoT)
+     {
+      int sz = ArraySize(g_naoC);
+      if(sz >= MathMax(100, InpNaoMaxBars))
+        {
+         ArrayRemove(g_naoH, 0, 1); ArrayRemove(g_naoL, 0, 1); ArrayRemove(g_naoC, 0, 1);
+         sz--;
+        }
+      ArrayResize(g_naoH, sz + 1, 256); ArrayResize(g_naoL, sz + 1, 256); ArrayResize(g_naoC, sz + 1, 256);
+      g_naoH[sz] = g_naoCurH; g_naoL[sz] = g_naoCurL; g_naoC[sz] = g_naoCurC;
+      closed = true;
+      g_naoT = bucket; g_naoCurH = mid; g_naoCurL = mid; g_naoCurC = mid;
+     }
+   if(!g_enNAO || !closed)
+      return;
+
+   long mg = InpMagic + 115;
+   int  n = ArraySize(g_naoC), cur = n - 1;
+   int  conf = MathMax(0, InpNaoConfirmBars);
+   int  need = MathMax(InpNaoSlowEma + 10 + conf, 25 + conf) + 1;
+   if(n < 6)
+     {
+      g_naoStatus = StringFormat("Mengumpulkan bar 10 detik (%d/%d)", n, need);
+      return;
+     }
+   double eF[], eM[], eS[], sar[];
+   NaoEma(g_naoC, InpNaoFastEma, eF);
+   NaoEma(g_naoC, InpNaoMidEma, eM);
+   NaoEma(g_naoC, InpNaoSlowEma, eS);
+   NaoSar(g_naoH, g_naoL, g_naoC, InpNaoSarStep, InpNaoSarMax, sar);
+
+   // posisi terbuka: keluar saat bar 10 detik berbalik
+   int posDir = 0;
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      ulong ptk = PositionGetTicket(i);
+      if(ptk == 0 || PositionGetString(POSITION_SYMBOL) != _Symbol || PositionGetInteger(POSITION_MAGIC) != mg)
+         continue;
+      int  pd = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? 1 : -1;
+      bool out = (InpNaoExitMode == 0) ? (pd == 1 ? sar[cur] > g_naoC[cur] : sar[cur] < g_naoC[cur])
+                                       : (pd == 1 ? g_naoC[cur] < eF[cur] : g_naoC[cur] > eF[cur]);
+      if(out && trade.PositionClose(ptk))
+        {
+         g_naoStatus = (InpNaoExitMode == 0) ? "Keluar: PSAR 10 detik berbalik" : "Keluar: tutup melewati EMA cepat";
+         continue;
+        }
+      posDir = pd;
+     }
+   if(n < need)
+     {
+      if(posDir == 0)
+         g_naoStatus = StringFormat("Mengumpulkan bar 10 detik (%d/%d)", n, need);
+      return;
+     }
+
+   // arah dasar: M1 (dan M5) searah
+   int base = NaoTfTrend(0);
+   if(base != 0 && InpNaoRequireM5 && NaoTfTrend(1) != base)
+      base = 0;
+   if(base == 0)
+     {
+      g_naoStatus = (posDir != 0) ? "Posisi aktif" : "Tunggu M1 dan M5 searah";
+      return;
+     }
+
+   // PSAR 10 detik baru berbalik dan bertahan, EMA 10 detik searah
+   int  flip = cur - conf, prev = flip - 1, sig = 0;
+   bool pBelow = (sar[prev] < g_naoC[prev]), fBelow = (sar[flip] < g_naoC[flip]);
+   if(pBelow != fBelow)
+     {
+      bool held = true;
+      for(int j = flip; j <= cur; j++)
+         if((sar[j] < g_naoC[j]) != fBelow)
+            held = false;
+      if(held && fBelow && eF[cur] > eM[cur] && eM[cur] > eS[cur])
+         sig = 1;
+      if(held && !fBelow && eF[cur] < eM[cur] && eM[cur] < eS[cur])
+         sig = -1;
+     }
+   if(sig == 0 || sig != base)
+     {
+      g_naoStatus = (posDir != 0) ? "Posisi aktif" : StringFormat("Arah %s, tunggu PSAR 10 detik berbalik", base == 1 ? "naik" : "turun");
+      return;
+     }
+   if(posDir != 0)
+     {
+      if(posDir != base)
+        {
+         CloseMagic(mg);
+         g_naoStatus = "Keluar: sinyal berlawanan";
+        }
+      else
+         g_naoStatus = "Posisi aktif";
+      return;
+     }
+
+   MqlDateTime dt;
+   TimeToStruct(TimeCurrent(), dt);
+   string why = "";
+   if(IsWeekend() || dt.hour < InpNaoHourFrom || dt.hour >= InpNaoHourTo)
+     {
+      g_naoStatus = StringFormat("Sinyal di luar jam %02d-%02d", InpNaoHourFrom, InpNaoHourTo);
+      return;
+     }
+   if(tk.ask - tk.bid > InpNaoMaxSpread || NewsBlocked(why))
+     {
+      g_naoStatus = "Sinyal dilewati (spread / news)";
+      return;
+     }
+   double slDist = MathMax(InpNaoSL, MinStopDist());
+   g_naoStatus = OpenStrategy(mg, base, slDist, (InpNaoTP > 0 ? InpNaoTP / slDist : 0), "MTRB NAO");
   }
 
 void StrategyDIP()
@@ -4129,7 +4381,7 @@ void WriteReport()
          ArrayResize(rec, k + 1, 1024);
          string cmt = HistoryDealGetString(tk, DEAL_COMMENT);
          rec[k].pid    = pid;
-         rec[k].kind   = (StringFind(cmt, "MTRB CDL") == 0) ? "CDL" : (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
+         rec[k].kind   = (StringFind(cmt, "MTRB NAO") == 0) ? "NAO" : (StringFind(cmt, "MTRB CDL") == 0) ? "CDL" : (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
          rec[k].dir    = (HistoryDealGetInteger(tk, DEAL_TYPE) == DEAL_TYPE_BUY) ? 1 : -1;
          rec[k].tIn    = (datetime)HistoryDealGetInteger(tk, DEAL_TIME);
          rec[k].pIn    = HistoryDealGetDouble(tk, DEAL_PRICE);
