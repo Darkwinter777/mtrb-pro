@@ -6,7 +6,7 @@
 //|          runner), ratchet SL, squeeze, ekspansi TP, cooldown     |
 //+------------------------------------------------------------------+
 #property copyright "MTRB Pro"
-#property version   "3.07"
+#property version   "3.08"
 #property description "Scalper MTF: bias D1..M1, entry pullback M1, twin order + ratchet, panel + news"
 
 #include <Trade/Trade.mqh>
@@ -756,6 +756,7 @@ int OnInit()
    g_maxOpenRisk = InpMaxOpenRisk; g_dailyLossPct = InpPortDailyLossPct; g_paused = false;
    DashInit();
    LogInit();
+   SgInit();
 
    UpdateDayStats();
    if(!g_tester)
@@ -815,6 +816,7 @@ void OnDeinit(const int reason)
    IndicatorRelease(g_hRhRsi);
    IndicatorRelease(g_hRhAtr);
    LogDeinit();
+   SgDeinit();
    ObjectsDeleteAll(0, PFX);
   }
 
@@ -852,6 +854,7 @@ void OnTick()
    StrategyDIP();
    StrategyNAO();
    StrategyCDL();
+   StrategySMCG();
    StrategyRH();
    RefreshStatuses();
 
@@ -1406,7 +1409,7 @@ bool IsHBMagic(const long m) { return (m == InpMagic + 101 || m == InpMagic + 11
 bool IsTLMagic(const long m) { return (m == InpMagic + 103 || m == InpMagic + 113); }
 bool IsOurMagic(const long m)
   {
-   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagic + 108 || m == InpMagic + 115 || m == InpMagicRange);
+   return (m == InpMagic || IsHBMagic(m) || IsTLMagic(m) || m == InpMagic + 102 || m == InpMagic + 104 || m == InpMagic + 105 || m == InpMagic + 106 || m == InpMagic + 107 || m == InpMagic + 108 || m == InpMagic + 115 || m == InpMagic + 117 || m == InpMagicRange);
   }
 
 // jalankan tiap salinan strategi: muat keadaannya ke variabel aktif, jalankan, simpan kembali
@@ -2540,7 +2543,7 @@ void StrategyMOM()
 //+------------------------------------------------------------------+
 #define DASH_STATUS  "MTRB_Pro_status.json"
 #define DASH_CONTROL "MTRB_Pro_control.txt"
-#define N_ENG 14
+#define N_ENG 15
 
 struct EngInfo
   {
@@ -2597,6 +2600,7 @@ void DashInit()
    DashAdd("RSM", "RSI + MA " + TfName(InpRsmTF), "rsima", TfName(InpRsmTF), InpMagic + 106);
    DashAdd("MOM", "Momentum " + TfName(InpMomBiasTF), "momentum", TfName(InpMomBiasTF) + "/" + TfName(InpMomEntryTF), InpMagic + 105);
    DashAdd("SMC", "SMC " + TfName(InpSmcTF), "smc", TfName(InpSmcTF), InpMagic + 104);
+   DashAdd("SMCG", "SMC Gold " + SgTfLabel(), "smcg", SgTfLabel(), InpMagic + 117);
    DashAdd("MAIN", "Strategi utama", "main", TfName(InpSignalTF), InpMagic);
   }
 
@@ -2615,6 +2619,7 @@ bool EngEnabled(const string id)
    if(id == "CDL") return g_enCDL;
    if(id == "RH") return g_enRH;
    if(id == "SMC") return g_enSMC;
+   if(id == "SMCG") return SgEnabled();
    if(id == "MAIN") return g_enMain;
    return false;
   }
@@ -2634,6 +2639,7 @@ string EngStatus(const string id)
    if(id == "CDL") return g_cdlStatus;
    if(id == "RH") return g_rhStatus;
    if(id == "SMC") return g_smcStatus;
+   if(id == "SMCG") return SgStatusText();
    return g_status;
   }
 
@@ -2652,6 +2658,7 @@ void EngSet(const string id, const bool on)
    else if(id == "CDL") g_enCDL = on;
    else if(id == "RH") g_enRH = on;
    else if(id == "SMC") g_enSMC = on;
+   else if(id == "SMCG") SgSetEnabled(on);
    else if(id == "MAIN") g_enMain = on;
   }
 
@@ -2830,7 +2837,7 @@ void DashWriteStatus()
    bool   newsBlk = NewsBlocked(why);
 
    string s = "{";
-   s += StringFormat("\"v\":\"3.07\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
+   s += StringFormat("\"v\":\"3.08\",\"ts\":%I64d,\"written\":%I64d,\"refreshed\":%I64d,\"refresh_min\":%d,", (long)TimeCurrent(), (long)TimeLocal(), (long)g_refAt, InpStatusRefreshMin);
    s += StringFormat("\"account\":{\"server\":\"%s\",\"login_tail\":\"%s\",\"demo\":%s,\"currency\":\"%s\",\"balance\":%.2f,\"equity\":%.2f,\"free_margin\":%.2f,\"margin_level\":%.1f,\"leverage\":%I64d,\"connected\":%s},",
                      JS(AccountInfoString(ACCOUNT_SERVER)), tail, (AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_DEMO) ? "true" : "false",
                      JS(AccountInfoString(ACCOUNT_CURRENCY)), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
@@ -3098,11 +3105,12 @@ ENUM_TIMEFRAMES EngTF(const long m)
    if(m == InpMagic + 106) return InpRsmTF;
    if(m == InpMagic + 105) return InpMomEntryTF;
    if(m == InpMagic + 104) return InpSmcTF;
+   if(m == InpMagic + 117) return SgLtf();
    return InpSignalTF;
   }
 
 // mesin pembalikan (entry melawan gerak terakhir): Range Hybrid dan pola candle
-bool EngReversal(const long m) { return (m == InpMagicRange || m == InpMagic + 108); }
+bool EngReversal(const long m) { return (m == InpMagicRange || m == InpMagic + 108 || m == InpMagic + 117); }
 
 // "" = volume mendukung entry, selain itu alasan penolakan
 string FlowVerdict(const long magic, const int dir, const FlowRes &r)
@@ -4984,7 +4992,7 @@ void WriteReport()
          ArrayResize(rec, k + 1, 1024);
          string cmt = HistoryDealGetString(tk, DEAL_COMMENT);
          rec[k].pid    = pid;
-         rec[k].kind   = (StringFind(cmt, "MTRB NAO") == 0) ? "NAO" : (StringFind(cmt, "MTRB CDL") == 0) ? "CDL" : (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
+         rec[k].kind   = (StringFind(cmt, "MTRB SMCG") == 0) ? "SMCG" : (StringFind(cmt, "MTRB NAO") == 0) ? "NAO" : (StringFind(cmt, "MTRB CDL") == 0) ? "CDL" : (cmt == CMT_SCALP) ? "SCALP" : (cmt == CMT_RUN) ? "RUN" : (cmt == CMT_HB) ? "H4BO" : (cmt == CMT_ORB) ? "ORB" : (cmt == CMT_TL) ? "TL" : (cmt == CMT_SMC) ? "SMC" : (cmt == "MTRB BO2") ? "BO2" : (cmt == "MTRB BO3") ? "BO3" : (cmt == "MTRB TL2") ? "TL2" : (cmt == "MTRB MOM") ? "MOM" : (cmt == "MTRB RSM") ? "RSM" : (cmt == "MTRB DIP") ? "DIP" : (StringFind(cmt, "MTRB RH") == 0) ? "RH" : "ONE";
          rec[k].dir    = (HistoryDealGetInteger(tk, DEAL_TYPE) == DEAL_TYPE_BUY) ? 1 : -1;
          rec[k].tIn    = (datetime)HistoryDealGetInteger(tk, DEAL_TIME);
          rec[k].pIn    = HistoryDealGetDouble(tk, DEAL_PRICE);
@@ -5509,3 +5517,8 @@ void DrawPanel()
    ChartRedraw(0);
   }
 //+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//| Mesin SMC Gold (zona M15 + konfirmasi M5): file terpisah         |
+//+------------------------------------------------------------------+
+#include "MTRB_SMC.mqh"

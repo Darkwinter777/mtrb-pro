@@ -330,6 +330,11 @@ const META = {
     "Dua candle searah di timeframe peta, candle pertama impulsif.",
     "Entry di timeframe kecil saat harga retrace 50% ke dalam range.",
     "SL di balik range, TP 1:2." ] },
+  smcg: { icon: "smc", kind: "SMC M15 + M5", rules: [
+    "Zona M15: Order Block, Rally-Base-Rally / Drop-Base-Drop, Resistance Become Support / Support Become Resistance.",
+    "Konfirmasi M5: FVG, iFVG yang sudah di-retest, Order Block, Drop-Base-Drop.",
+    "Pola wajib, opsional, atau skor diatur per arah. Entry saat candle M5 masuk zona entry lalu menutup keluar searah.",
+    "SL di balik zona entry M5 + 0,3 ATR, TP 2R. Semua keputusan dan alasannya dicatat di MTRB_Pro_smclog.csv." ] },
   smc: { icon: "smc", kind: "SMC", rules: [
     "Liquidity sweep, lalu displacement yang meninggalkan fair value gap.",
     "Entry saat harga kembali ke zona FVG atau order block.",
@@ -351,6 +356,7 @@ const VERDICT = {
   RH: ["na", "Belum diuji", "Belum pernah di-backtest. Batas lebar range sekarang mengikuti ATR, dan tiap tepi harus sudah disentuh 2 kali: di data M5 sesi Asia sekitar 2,9% candle yang lolos, sebelum syarat RSI dan pola candle. Lot dihitung dari % risiko (maksimal 0,10), jadi bisa lebih besar dari 0,01."],
   RSM: ["na", "Belum lolos tester", "Positif di simulasi candle M5 (Jun 2025 – Nov 2026), tetapi belum diuji di tester MetaTrader dan hanya pada masa reli emas."],
   MOM: ["bad", "Tidak lolos uji", "Versi M30/M5 rugi di kedua paruh data 2024–2026; 9 dari 11 variasi tidak bertahan."],
+  SMCG: ["bad", "Simulasi rugi", "Simulasi Python 30 hari (13 Okt – 12 Nov 2026, setelan bawaan): 49 sinyal, 11 TP dan 38 SL, total −16R. Belum diuji di tester MetaTrader. Dipakai untuk audit pola, bukan untuk profit."],
   SMC: ["bad", "Tidak lolos uji", "Rugi atau impas pada 2016–2021 di semua variasi yang diuji."],
   MAIN: ["bad", "Tidak lolos uji", "Mode-mode entry berbasis indikator rugi di backtest."]
 };
